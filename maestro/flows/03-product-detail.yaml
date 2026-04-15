@@ -1,0 +1,23 @@
+# Product detail flow — open home, tap first product, add to cart
+appId: com.oliinyki.ninhao
+name: Product Detail
+tags:
+  - smoke
+  - product
+---
+- launchApp
+- assertVisible:
+    text: "New Arrivals"
+# Tap first product card (testID)
+- tapOn:
+    id: "product-card"
+# Wait for product page
+- extendedWaitUntil:
+    visible:
+      id: "add-to-cart"
+    timeout: 5000
+- tapOn:
+    id: "add-to-cart"
+# Toast
+- assertVisible:
+    text: "Added to cart"

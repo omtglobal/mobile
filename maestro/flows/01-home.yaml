@@ -1,0 +1,17 @@
+# Home screen flow — verify main content loads
+appId: com.oliinyki.ninhao
+name: Home
+tags:
+  - smoke
+  - home
+---
+- launchApp
+- assertVisible:
+    text: "Search products..."
+- assertVisible:
+    text: "New Arrivals"
+- assertVisible:
+    text: "Popular"
+# Categories and products come from API — at least "All" button is always visible
+- assertVisible:
+    text: "All"

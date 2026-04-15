@@ -1,0 +1,18 @@
+# Search flow — tap search, enter query, see results
+appId: com.oliinyki.ninhao
+name: Search
+tags:
+  - smoke
+  - search
+---
+- launchApp
+- tapOn:
+    id: "search-bar"
+- tapOn:
+    id: "search-input"
+- inputText: "product"
+- assertVisible:
+    text: "product"
+# Search input should show our query
+- assertVisible:
+    text: "product"

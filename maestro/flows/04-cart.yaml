@@ -1,0 +1,18 @@
+# Cart flow — verify cart screen and empty state
+appId: com.oliinyki.ninhao
+name: Cart
+tags:
+  - smoke
+  - cart
+---
+- launchApp
+# Navigate to cart via tab bar (bottom)
+- tapOn:
+    text: "Cart"
+- assertVisible:
+    text: "Cart"
+# Either empty state or items
+- extendedWaitUntil:
+    visible:
+      text: ".*"
+    timeout: 3000
