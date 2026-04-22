@@ -224,7 +224,7 @@ export default function SettingsScreen() {
       <View style={[styles.section, { backgroundColor: colors.bgPrimary, borderColor: colors.borderDefault }]}>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.legal')}</Text>
         <TouchableOpacity
-          onPress={() => WebBrowser.openBrowserAsync('https://ninhao.com/privacy')}
+          onPress={() => WebBrowser.openBrowserAsync('https://ninhao.shop/privacy')}
           style={styles.legalRow}
         >
           <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>
@@ -233,7 +233,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <View style={[styles.legalDivider, { backgroundColor: colors.borderDefault }]} />
         <TouchableOpacity
-          onPress={() => WebBrowser.openBrowserAsync('https://ninhao.com/support')}
+          onPress={() => WebBrowser.openBrowserAsync('https://ninhao.shop/support')}
           style={styles.legalRow}
         >
           <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>
@@ -241,6 +241,32 @@ export default function SettingsScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {isAuthenticated ? (
+        <View
+          style={[
+            styles.section,
+            {
+              backgroundColor: colors.bgPrimary,
+              borderColor: colors.error + '40',
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.error }]}>
+            {t('settings.danger_zone')}
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/delete-account')}
+            style={[styles.button, { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.error }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings.delete_account')}
+          >
+            <Text style={[styles.buttonText, { color: colors.error }]}>
+              {t('settings.delete_account')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <View style={[styles.section, { backgroundColor: colors.bgPrimary, borderColor: colors.borderDefault }]}>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.about')}</Text>

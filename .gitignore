@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+.env
 
 # Expo
 .expo/
@@ -33,9 +34,18 @@ yarn-error.*
 # local env files
 .env*.local
 
+# AI agent / IDE local settings (may contain API tokens and personal configs)
+.claude/
+.cursor/
+.idea/
+.vscode/
+CLAUDE.md
+AGENT.md
+
 # typescript
 *.tsbuildinfo
 
 # generated native folders
 /ios
 /android
+/.vscode/

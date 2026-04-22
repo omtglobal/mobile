@@ -132,6 +132,7 @@ export default function MainLayout() {
                 <Stack.Screen name="support" />
                 <Stack.Screen name="addresses" />
                 <Stack.Screen name="settings" />
+                <Stack.Screen name="delete-account" />
               </Stack>
             </View>
             <View key="video" style={{ flex: 1, backgroundColor: '#000' }}>

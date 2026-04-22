@@ -14,14 +14,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.oliinyki.ninhao",
-      "associatedDomains": ["applinks:ninhao.com"],
+      "bundleIdentifier": "com.omtglobal.ninhaomaniya",
+      "associatedDomains": [
+        "applinks:ninhao.shop",
+        "applinks:ninhao.shop"
+      ],
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Use Face ID to quickly and securely sign in to Ninhao."
+        "NSFaceIDUsageDescription": "Use Face ID to quickly and securely sign in to Ninhao.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.oliinyki.ninhao",
+      "package": "com.omtglobal.ninhaomaniya",
       "adaptiveIcon": {
         "backgroundColor": "#FF6B00",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -36,22 +40,22 @@
           "data": [
             {
               "scheme": "https",
-              "host": "ninhao.com",
+              "host": "ninhao.shop",
               "pathPrefix": "/product"
             },
             {
               "scheme": "https",
-              "host": "ninhao.com",
+              "host": "ninhao.shop",
               "pathPrefix": "/category"
             },
             {
               "scheme": "https",
-              "host": "ninhao.com",
+              "host": "ninhao.shop",
               "pathPrefix": "/seller"
             },
             {
               "scheme": "https",
-              "host": "ninhao.com",
+              "host": "ninhao.shop",
               "pathPrefix": "/search"
             }
           ],
@@ -85,6 +89,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3cbf793e-5b80-4aef-977c-ea02acef7686"
+      }
     }
   }
 }

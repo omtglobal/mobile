@@ -6,6 +6,6 @@
 # 2. Dev build: npx expo run:ios  OR  npx expo run:android
 # 3. Maestro CLI: curl -Ls "https://get.maestro.mobile.dev" | bash
 
-appId: com.oliinyki.ninhao
+appId: com.omtglobal.ninhaomaniya
 env:
   # API URL is set by app in __DEV__: localhost (iOS) / 10.0.2.2 (Android)

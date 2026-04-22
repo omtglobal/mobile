@@ -18,4 +18,16 @@ export const authApi = {
 
   updateProfile: (data: { name?: string; preferred_locale?: string; messenger_searchable?: boolean }) =>
     apiClient.patch<ApiResponse<User>>('/auth/profile', data).then((r) => r.data),
+
+  /**
+   * Permanently delete the authenticated user's account and all associated data.
+   * Required by Apple App Store Review Guideline 5.1.1(v).
+   *
+   * Password is required for buyer accounts that have one. For social-only
+   * accounts the backend must accept the request without it.
+   */
+  deleteAccount: (data: { password?: string; reason?: string } = {}) =>
+    apiClient
+      .delete<ApiResponse<{ deleted: true }>>('/auth/account', { data })
+      .then((r) => r.data),
 };

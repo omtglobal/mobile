@@ -55,7 +55,7 @@ function getBaseUrl(): string {
   if (fromEnv) return fromEnv;
 
   if (!__DEV__) {
-    return 'https://api.ninhao.com';
+    return 'https://api.ninhao.shop';
   }
 
   const host = devMachineHost();
@@ -81,7 +81,7 @@ function getWsBaseUrl(): string {
   if (fromEnv) return fromEnv.replace(/\/$/, '');
 
   if (!__DEV__) {
-    return 'wss://api.ninhao.com';
+    return 'wss://api.ninhao.shop';
   }
 
   const host = devMachineHost();

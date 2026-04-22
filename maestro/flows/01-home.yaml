@@ -1,5 +1,5 @@
 # Home screen flow — verify main content loads
-appId: com.oliinyki.ninhao
+appId: com.omtglobal.ninhaomaniya
 name: Home
 tags:
   - smoke

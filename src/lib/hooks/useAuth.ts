@@ -10,6 +10,7 @@ export function useAuth() {
   const logout = useAuthStore((s) => s.logout);
   const clearSession = useAuthStore((s) => s.clearSession);
   const fetchUser = useAuthStore((s) => s.fetchUser);
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
 
   return {
     isAuthenticated: !!token,
@@ -22,5 +23,6 @@ export function useAuth() {
     logout,
     clearSession,
     fetchUser,
+    deleteAccount,
   };
 }

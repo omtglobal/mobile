@@ -21,6 +21,7 @@ interface AuthState {
   logout: () => Promise<void>;
   clearSession: () => Promise<void>;
   fetchUser: () => Promise<void>;
+  deleteAccount: (data?: { password?: string; reason?: string }) => Promise<void>;
 }
 
 async function syncTokenToClient(token: string | null): Promise<void> {
@@ -96,6 +97,21 @@ export const useAuthStore = create<AuthState>()(
         await syncTokenToClient(null);
         set({ token: null, user: null });
         clearQueryCacheOnLogout();
+      },
+
+      deleteAccount: async (data) => {
+        const { token } = get();
+        if (!token) throw new Error('Not authenticated');
+        set({ isLoading: true });
+        try {
+          await authApi.deleteAccount(data ?? {});
+        } finally {
+          // Whatever the server response, wipe local state so the user is never
+          // left with a dangling session pointing at a deleted account.
+          await syncTokenToClient(null);
+          set({ token: null, user: null, isLoading: false });
+          clearQueryCacheOnLogout();
+        }
       },
 
       fetchUser: async () => {

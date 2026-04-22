@@ -1,5 +1,5 @@
 # Full smoke flow — runs 01-home, 02-search, 03-product-detail, 04-cart
-appId: com.oliinyki.ninhao
+appId: com.omtglobal.ninhaomaniya
 name: Smoke (Full)
 tags:
   - smoke

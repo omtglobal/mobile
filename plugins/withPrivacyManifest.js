@@ -1,6 +1,7 @@
 const { withDangerousMod, withXcodeProject } = require('@expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
+const pbxFile = require('xcode/lib/pbxFile');
 
 /**
  * Injects a PrivacyInfo.xcprivacy file into the iOS project.
@@ -51,8 +52,8 @@ function withPrivacyManifest(config) {
   config = withDangerousMod(config, [
     'ios',
     async (c) => {
-      const projectRoot = c.modRequest.platformProjectRoot; // …/apps/mobile/ios
-      const projectName = c.modRequest.projectName;         // e.g. "ninhao"
+      const projectRoot = c.modRequest.platformProjectRoot;
+      const projectName = c.modRequest.projectName;
       const targetDir = path.join(projectRoot, projectName);
       const dest = path.join(targetDir, 'PrivacyInfo.xcprivacy');
 
@@ -66,17 +67,39 @@ function withPrivacyManifest(config) {
     },
   ]);
 
-  // Step 2: Register the file in the Xcode project so it's included in the build
+  // Step 2: Register the file in the Xcode project so it's included in the build.
+  //
+  // We avoid project.addResourceFile() because it internally calls
+  // correctForResourcesPath() which crashes when the project has no PBXGroup
+  // named "Resources" — which is the case for Expo-generated projects (they
+  // use a group named after the app, e.g. "ninhao", instead). We wire the file
+  // up manually using the same low-level primitives addResourceFile would use.
   config = withXcodeProject(config, (c) => {
     const project = c.modResults;
     const projectName = c.modRequest.projectName;
     const relativePath = `${projectName}/PrivacyInfo.xcprivacy`;
 
-    if (!project.pbxFileByName('PrivacyInfo.xcprivacy')) {
-      project.addResourceFile(relativePath, {
-        target: project.getFirstTarget().uuid,
-      });
+    if (project.hasFile(relativePath)) {
+      return c;
     }
+
+    const groupKey = project.findPBXGroupKey({ name: projectName });
+    const target = project.getFirstTarget();
+    const targetUuid = target && target.uuid;
+    if (!groupKey || !targetUuid) {
+      // Bail quietly instead of crashing prebuild
+      return c;
+    }
+
+    const file = new pbxFile(relativePath, { target: targetUuid });
+    file.uuid = project.generateUuid();
+    file.fileRef = project.generateUuid();
+    file.target = targetUuid;
+
+    project.addToPbxBuildFileSection(file);
+    project.addToPbxFileReferenceSection(file);
+    project.addToPbxResourcesBuildPhase(file);
+    project.addToPbxGroup(file, groupKey);
 
     return c;
   });

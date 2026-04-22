@@ -33,9 +33,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "YOUR_APPLE_ID@example.com",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleId": "omtglobal_2026@qq.com",
+        "ascAppId": "6762331575",
+        "appleTeamId": "CZ76Y2836S"
       },
       "android": {
         "serviceAccountKeyPath": "./google-services-account.json",
