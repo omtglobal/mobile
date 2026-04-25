@@ -18,6 +18,7 @@ import { useAuth } from '~/lib/hooks/useAuth';
 import { useMainPager } from '~/lib/contexts/MainPagerContext';
 import * as messagingApi from '~/lib/api/messaging';
 import { MessengerLoginPrompt } from './MessengerLoginPrompt';
+import { resolveConversationTitle } from '~/lib/messaging/conversationDisplay';
 import type { Conversation } from '~/types/messaging';
 
 interface ShareToChatSheetProps {
@@ -44,12 +45,6 @@ function getAvatarColor(id: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function getConversationName(conv: Conversation): string {
-  if (conv.company) return conv.company.name;
-  const other = conv.participants.find((p) => p.id !== '__self__');
-  return other?.name ?? 'Chat';
-}
-
 export function ShareToChatSheet({
   visible,
   onClose,
@@ -63,7 +58,7 @@ export function ShareToChatSheet({
   const { t } = useTranslation();
   const { colors, spacing, radius } = useTheme();
   const insets = useSafeAreaInsets();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { data: conversationsData } = useConversations();
   const { goToMessengerAndChat } = useMainPager();
   const toast = useToast();
@@ -109,7 +104,7 @@ export function ShareToChatSheet({
 
   const renderConversation = useCallback(
     ({ item }: { item: Conversation }) => {
-      const name = getConversationName(item);
+      const name = resolveConversationTitle(item, user?.id) || t('messenger.chat');
       const initial = name.charAt(0).toUpperCase();
       const avatarBg = getAvatarColor(item.id);
       const isLoading = sending === item.id;
@@ -139,7 +134,7 @@ export function ShareToChatSheet({
         </Pressable>
       );
     },
-    [colors, spacing, sending, handleSelect],
+    [colors, spacing, sending, handleSelect, user?.id, t],
   );
 
   return (

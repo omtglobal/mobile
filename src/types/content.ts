@@ -7,11 +7,33 @@ export interface VideoSeller {
   avatarUrl?: string;
 }
 
+export type VideoSourceType = 'platform' | 'seller' | 'user';
+
+export type VideoVariantQuality = '480p' | '720p' | '1080p';
+
+export interface VideoVariant {
+  quality: VideoVariantQuality;
+  url: string;
+  mimeType?: 'application/vnd.apple.mpegurl' | 'video/mp4';
+  bitrateKbps?: number;
+  width?: number;
+  height?: number;
+  sizeBytes?: number;
+}
+
 export interface VideoMeta {
   id: string;
   filename: string;
+  /** Primary remote playback URL; often same as hlsUrl when backend uses HLS. */
   url: string;
   description?: string;
+  sourceType?: VideoSourceType;
+  hlsUrl?: string;
+  posterUrl?: string;
+  thumbnailUrl?: string;
+  durationSec?: number;
+  /** Explicit progressive/HLS variant URLs; optional if url/hlsUrl are enough. */
+  variants?: VideoVariant[];
 }
 
 export interface VideoFeedItem {

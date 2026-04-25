@@ -14,7 +14,13 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { Text } from '~/components/ui';
 import { ContactRow } from '~/components/messenger';
-import { useContactSearchQuery, useRequestContactMutation } from '~/lib/hooks/useMessaging';
+import {
+  useContactSearchQuery,
+  useContactsQuery,
+  useCreateConversationMutation,
+  useRequestContactMutation,
+  useDeleteContactMutation,
+} from '~/lib/hooks/useMessaging';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MessengerStackParamList } from '~/navigation/MessengerNavigator';
 import type { ContactSearchResult } from '~/types/messaging';
@@ -36,6 +42,27 @@ export function ContactSearchScreen() {
   } = useContactSearchQuery(query);
 
   const requestContact = useRequestContactMutation();
+  const deleteContact = useDeleteContactMutation();
+  const { data: contacts } = useContactsQuery();
+  const createConversation = useCreateConversationMutation();
+
+  const openChat = useCallback(
+    async (result: ContactSearchResult) => {
+      try {
+        const res = await createConversation.mutateAsync({
+          participant_user_id: result.id,
+          type: 'direct',
+        });
+        const conv = res?.data;
+        if (conv?.id) {
+          navigation.navigate('MessengerChat', { conversationId: conv.id });
+        }
+      } catch {
+        // react-query / toast
+      }
+    },
+    [createConversation, navigation],
+  );
 
   const handleAdd = useCallback(
     (result: ContactSearchResult) => {
@@ -44,16 +71,53 @@ export function ContactSearchScreen() {
     [requestContact],
   );
 
+  const handleRemoveSearchRow = useCallback(
+    (row: ContactSearchResult) => {
+      const linked = contacts?.find((c) => c.user_id === row.id);
+      if (linked) deleteContact.mutate(linked.id);
+    },
+    [contacts, deleteContact],
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: ContactSearchResult }) => (
-      <ContactRow
-        contact={item}
-        onPress={() => {}}
-        onAction={item.is_contact ? undefined : () => handleAdd(item)}
-        actionLabel={item.is_contact ? undefined : t('messenger.add_contact')}
-      />
-    ),
-    [handleAdd, t],
+    ({ item }: { item: ContactSearchResult }) => {
+      const linked = contacts?.find((c) => c.user_id === item.id);
+      const isLinked = !!linked || item.is_contact;
+      const adding =
+        requestContact.isPending &&
+        requestContact.variables?.contact_user_id === item.id;
+      const removing =
+        deleteContact.isPending &&
+        linked != null &&
+        deleteContact.variables === linked.id;
+
+      return (
+        <ContactRow
+          contact={item}
+          onPress={() => void openChat(item)}
+          onAction={
+            isLinked ? () => handleRemoveSearchRow(item) : () => handleAdd(item)
+          }
+          actionLabel={
+            isLinked
+              ? t('messenger.remove_contact_short')
+              : t('messenger.add_contact')
+          }
+          actionLoading={adding || removing}
+        />
+      );
+    },
+    [
+      contacts,
+      deleteContact.isPending,
+      deleteContact.variables,
+      handleAdd,
+      handleRemoveSearchRow,
+      openChat,
+      requestContact.isPending,
+      requestContact.variables?.contact_user_id,
+      t,
+    ],
   );
 
   const keyExtractor = useCallback((item: ContactSearchResult) => item.id, []);
@@ -82,6 +146,8 @@ export function ContactSearchScreen() {
           onChangeText={setQuery}
           placeholder={t('messenger.search_contacts_placeholder')}
           placeholderTextColor={colors.textTertiary}
+          autoCapitalize="none"
+          autoCorrect={false}
           autoFocus
           style={[
             styles.searchInput,
@@ -97,7 +163,10 @@ export function ContactSearchScreen() {
       </View>
 
       {/* Results */}
-      {(isLoading || isFetching) && query.trim().length >= 2 ? (
+      {(isLoading || isFetching) &&
+      query.trim().length >= 2 &&
+      !requestContact.isPending &&
+      !deleteContact.isPending ? (
         <View style={[styles.centered, { paddingTop: spacing['3xl'] }]}>
           <ActivityIndicator color={colors.brandPrimary} />
         </View>

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { MessageCircle, Phone } from 'lucide-react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { MessageCircle } from 'lucide-react-native';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { Text } from '~/components/ui';
 import type { Contact, ContactSearchResult } from '~/types/messaging';
@@ -10,6 +10,11 @@ interface ContactRowProps {
   onPress: () => void;
   onAction?: () => void;
   actionLabel?: string;
+  /** Shows spinner in the action button; disables the action while true */
+  actionLoading?: boolean;
+  onSecondaryAction?: () => void;
+  secondaryLabel?: string;
+  secondaryLoading?: boolean;
 }
 
 const AVATAR_SIZE = 56;
@@ -27,7 +32,16 @@ function getAvatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-export function ContactRow({ contact, onPress, onAction, actionLabel }: ContactRowProps) {
+export function ContactRow({
+  contact,
+  onPress,
+  onAction,
+  actionLabel,
+  actionLoading = false,
+  onSecondaryAction,
+  secondaryLabel,
+  secondaryLoading = false,
+}: ContactRowProps) {
   const { colors, spacing, radius } = useTheme();
 
   const initial = contact.name.charAt(0).toUpperCase();
@@ -40,48 +54,54 @@ export function ContactRow({ contact, onPress, onAction, actionLabel }: ContactR
         ? 'Support'
         : '';
 
+  const searchHint =
+    'email_hint' in contact
+      ? [contact.email_hint, contact.phone_hint].filter(Boolean).join(' · ') || null
+      : null;
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.row,
         {
-          paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.md,
-          backgroundColor: pressed ? colors.bgSecondary : colors.bgPrimary,
-          borderBottomWidth: StyleSheet.hairlineWidth,
+          backgroundColor: colors.bgPrimary,
           borderBottomColor: colors.borderDefault,
         },
       ]}
     >
-      {/* Avatar */}
-      <View style={styles.avatarContainer}>
-        <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
-          <Text variant="headingSm" style={styles.avatarText}>
-            {initial}
-          </Text>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.main,
+          { backgroundColor: pressed ? colors.bgSecondary : 'transparent' },
+        ]}
+      >
+        <View style={styles.avatarContainer}>
+          <View style={[styles.avatar, { backgroundColor: avatarBg }]}>
+            <Text variant="headingSm" style={styles.avatarText}>
+              {initial}
+            </Text>
+          </View>
         </View>
-      </View>
-
-      {/* Info */}
-      <View style={styles.info}>
-        <Text variant="headingSm" color="primary" numberOfLines={1}>
-          {contact.name}
-        </Text>
-        {accountLabel ? (
-          <Text variant="caption" color="secondary" numberOfLines={1}>
-            {accountLabel}
+        <View style={styles.info}>
+          <Text variant="headingSm" color="primary" numberOfLines={1}>
+            {contact.name}
           </Text>
-        ) : null}
-      </View>
-
-      {/* Action buttons */}
-      <View style={styles.actions}>
+          {searchHint ? (
+            <Text variant="caption" color="secondary" numberOfLines={1}>
+              {searchHint}
+            </Text>
+          ) : accountLabel ? (
+            <Text variant="caption" color="secondary" numberOfLines={1}>
+              {accountLabel}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+      <View style={[styles.actions, { marginLeft: 8 }]}>
         <Pressable
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onPress();
-          }}
+          onPress={onPress}
+          hitSlop={6}
           style={[
             styles.actionBtn,
             {
@@ -92,19 +112,68 @@ export function ContactRow({ contact, onPress, onAction, actionLabel }: ContactR
         >
           <MessageCircle size={20} color={colors.brandPrimary} />
         </Pressable>
-        <Pressable
-          style={[
-            styles.actionBtn,
-            {
-              backgroundColor: colors.bgSecondary,
-              borderRadius: radius.lg,
-            },
-          ]}
-        >
-          <Phone size={20} color={colors.textSecondary} />
-        </Pressable>
+        {onAction && (actionLabel || actionLoading) ? (
+          <Pressable
+            onPress={actionLoading ? undefined : onAction}
+            disabled={actionLoading}
+            hitSlop={6}
+            style={[
+              styles.actionBtn,
+              {
+                backgroundColor: colors.brandPrimary + '20',
+                borderRadius: radius.lg,
+                paddingHorizontal: spacing.sm,
+                minWidth: 48,
+                maxWidth: 112,
+              },
+            ]}
+          >
+            {actionLoading ? (
+              <ActivityIndicator size="small" color={colors.brandPrimary} />
+            ) : actionLabel ? (
+              <Text
+                variant="bodySm"
+                color="brand"
+                numberOfLines={1}
+                style={{ fontWeight: '600' }}
+              >
+                {actionLabel}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : null}
+        {onSecondaryAction && (secondaryLabel || secondaryLoading) ? (
+          <Pressable
+            onPress={secondaryLoading ? undefined : onSecondaryAction}
+            disabled={secondaryLoading}
+            hitSlop={6}
+            style={[
+              styles.actionBtn,
+              {
+                backgroundColor: colors.bgSecondary,
+                borderRadius: radius.lg,
+                paddingHorizontal: spacing.sm,
+                minWidth: 48,
+                maxWidth: 112,
+              },
+            ]}
+          >
+            {secondaryLoading ? (
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+            ) : secondaryLabel ? (
+              <Text
+                variant="bodySm"
+                color="secondary"
+                numberOfLines={1}
+                style={{ fontWeight: '600' }}
+              >
+                {secondaryLabel}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : null}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -112,6 +181,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  main: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 16,
+    paddingVertical: 12,
   },
   avatarContainer: {
     position: 'relative',
@@ -136,11 +213,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginLeft: 8,
+    paddingRight: 16,
   },
   actionBtn: {
-    width: 40,
-    height: 40,
+    minHeight: 40,
+    minWidth: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,8 +1,14 @@
 import React, { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Pin, Check, CheckCheck } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { Text } from '~/components/ui';
+import { useAuth } from '~/lib/hooks/useAuth';
+import {
+  getConversationPeer,
+  resolveConversationTitle,
+} from '~/lib/messaging/conversationDisplay';
 import type { Conversation } from '~/types/messaging';
 
 interface ConversationRowProps {
@@ -38,24 +44,28 @@ function formatTimeAgo(iso: string): string {
 }
 
 function ConversationRowInner({ conversation, onPress }: ConversationRowProps) {
+  const { t } = useTranslation();
   const { colors, spacing, radius } = useTheme();
+  const { user } = useAuth();
 
   const displayName = useMemo(() => {
-    if (conversation.company) return conversation.company.name;
-    const other = conversation.participants.find((p) => p.id !== '__self__');
-    return other?.name ?? 'Chat';
-  }, [conversation]);
+    const title = resolveConversationTitle(conversation, user?.id);
+    return title || t('messenger.chat');
+  }, [conversation, user?.id, t]);
 
   const initial = displayName.charAt(0).toUpperCase();
   const avatarBg = getAvatarColor(conversation.id);
 
   const isOnline = useMemo(() => {
-    const other = conversation.participants.find((p) => p.id !== '__self__');
+    const other = getConversationPeer(conversation, user?.id);
     return other?.is_online ?? false;
-  }, [conversation]);
+  }, [conversation, user?.id]);
 
   const lastMsg = conversation.last_message;
-  const isSent = lastMsg?.sender_id === '__self__';
+  const uid = user?.id != null ? String(user.id) : null;
+  const isSent =
+    lastMsg?.sender_id === '__self__' ||
+    (uid != null && lastMsg != null && String(lastMsg.sender_id) === uid);
   const isRead = lastMsg?.status === 'read';
   const isDelivered = lastMsg?.status === 'delivered';
   const isTyping = false;

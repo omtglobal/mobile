@@ -1,7 +1,8 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { router } from 'expo-router';
 import { API_BASE_URL, API_PREFIX } from '~/constants/config';
-import { getAuthToken, setAuthToken, notifySessionExpired, notifyTokenRefreshed } from './authToken';
+import { getAuthToken, setAuthToken, notifySessionExpired } from './authToken';
+import { refreshAccessToken } from './refreshAccessToken';
 import { clearQueryCacheOnLogout } from './queryClientRef';
 import type { ApiResponse } from '~/types/api';
 
@@ -53,22 +54,7 @@ type Queued = { resolve: (token: string) => void; reject: (err: unknown) => void
 let failedQueue: Queued[] = [];
 
 async function refreshToken(): Promise<string> {
-  const t = getAuthToken();
-  const res = await axios.post<ApiResponse<{ access_token: string }>>(
-    `${BASE_URL}/auth/refresh`,
-    null,
-    {
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...(t ? { Authorization: `Bearer ${t}` } : {}),
-      },
-      timeout: 10000,
-    }
-  );
-  const newToken = res.data.data.access_token;
-  setAuthToken(newToken);
-  return newToken;
+  return refreshAccessToken();
 }
 
 function onAuthFailure(): void {
@@ -100,7 +86,6 @@ apiClient.interceptors.response.use(
 
       try {
         const newToken = await refreshToken();
-        notifyTokenRefreshed(newToken);
         failedQueue.forEach(({ resolve }) => resolve(newToken));
         failedQueue = [];
         originalRequest.headers.Authorization = `Bearer ${newToken}`;

@@ -9,19 +9,22 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Search, UserPlus, Users, Radio, MoreVertical, X } from 'lucide-react-native';
+import { Search, UserPlus, Users, Radio, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { Text } from '~/components/ui';
 import { ContactRow } from '~/components/messenger';
 import {
   useContactsQuery,
-  useContactGroupsQuery,
+  useContactSearchQuery,
   useCreateConversationMutation,
+  useRequestContactMutation,
+  useAcceptContactMutation,
+  useDeleteContactMutation,
 } from '~/lib/hooks/useMessaging';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MessengerStackParamList } from '~/navigation/MessengerNavigator';
-import type { Contact, ContactGroup } from '~/types/messaging';
+import type { Contact, ContactSearchResult } from '~/types/messaging';
 
 type Nav = NativeStackNavigationProp<MessengerStackParamList, 'MessengerContacts'>;
 
@@ -30,68 +33,76 @@ interface GroupedSection {
   title: string;
   icon: string | null;
   count: number;
-  data: Contact[];
+  data: (Contact | ContactSearchResult)[];
 }
 
 function buildSections(
   contacts: Contact[] | undefined,
-  groups: ContactGroup[] | undefined,
   searchText: string,
+  globalFromApi: ContactSearchResult[] | undefined,
+  searchGlobalTitle: string,
+  incomingSectionTitle: string,
 ): GroupedSection[] {
   if (!contacts) return [];
 
   const q = searchText.toLowerCase().trim();
-  const filtered = q
-    ? contacts.filter((c) => c.name.toLowerCase().includes(q))
-    : contacts;
+  const trimmed = searchText.trim();
+  const existingUserIds = new Set((contacts ?? []).map((c) => c.user_id));
 
-  if (!groups || groups.length === 0) {
-    if (filtered.length === 0) return [];
-    return [{ key: '__all', title: '', icon: null, count: filtered.length, data: filtered }];
-  }
+  const global =
+    trimmed.length >= 2 && globalFromApi
+      ? globalFromApi.filter((r) => !existingUserIds.has(r.id))
+      : [];
 
-  const groupMap = new Map<string, ContactGroup>();
-  for (const g of groups) groupMap.set(g.id, g);
+  const incomingPending = contacts.filter(
+    (c) => c.direction === 'incoming' && c.status === 'pending',
+  );
+  const rest = contacts.filter(
+    (c) => !(c.direction === 'incoming' && c.status === 'pending'),
+  );
 
-  const buckets = new Map<string, Contact[]>();
-  const ungrouped: Contact[] = [];
+  const filterByQ = (arr: Contact[]) =>
+    q ? arr.filter((c) => c.name.toLowerCase().includes(q)) : arr;
 
-  for (const c of filtered) {
-    if (c.group_id && groupMap.has(c.group_id)) {
-      const existing = buckets.get(c.group_id) ?? [];
-      existing.push(c);
-      buckets.set(c.group_id, existing);
-    } else {
-      ungrouped.push(c);
-    }
-  }
+  const filteredIncoming = filterByQ(incomingPending);
+  const filteredRest = filterByQ(rest);
 
-  const sections: GroupedSection[] = [];
+  const out: GroupedSection[] = [];
 
-  for (const g of groups) {
-    const data = buckets.get(g.id);
-    if (data && data.length > 0) {
-      sections.push({
-        key: g.id,
-        title: g.name,
-        icon: g.icon,
-        count: data.length,
-        data,
-      });
-    }
-  }
-
-  if (ungrouped.length > 0) {
-    sections.push({
-      key: '__ungrouped',
-      title: 'Other',
+  if (global.length > 0) {
+    out.push({
+      key: '__global_search',
+      title: searchGlobalTitle,
       icon: null,
-      count: ungrouped.length,
-      data: ungrouped,
+      count: global.length,
+      data: global,
     });
   }
 
-  return sections;
+  if (filteredIncoming.length > 0) {
+    out.push({
+      key: '__incoming',
+      title: incomingSectionTitle,
+      icon: null,
+      count: filteredIncoming.length,
+      data: filteredIncoming,
+    });
+  }
+
+  if (filteredRest.length === 0) {
+    return out;
+  }
+
+  return [
+    ...out,
+    {
+      key: '__all',
+      title: '',
+      icon: null,
+      count: filteredRest.length,
+      data: filteredRest,
+    },
+  ];
 }
 
 export function ContactsScreen() {
@@ -107,22 +118,35 @@ export function ContactsScreen() {
     isError,
     refetch,
   } = useContactsQuery();
-  const { data: groups, isLoading: loadingGroups } = useContactGroupsQuery();
+  const {
+    data: globalFromApi,
+    isFetching: searchGlobalFetching,
+  } = useContactSearchQuery(searchText);
 
   const createConversation = useCreateConversationMutation();
+  const requestContact = useRequestContactMutation();
+  const acceptContact = useAcceptContactMutation();
+  const deleteContact = useDeleteContactMutation();
 
   const sections = useMemo(
-    () => buildSections(contacts, groups, searchText),
-    [contacts, groups, searchText],
+    () =>
+      buildSections(
+        contacts,
+        searchText,
+        globalFromApi,
+        t('messenger.search_global_section'),
+        t('messenger.incoming_requests'),
+      ),
+    [contacts, searchText, globalFromApi, t],
   );
 
-  const isLoading = loadingContacts || loadingGroups;
+  const isLoading = loadingContacts;
 
-  const handleContactPress = useCallback(
-    async (contact: Contact) => {
+  const openChatWithUser = useCallback(
+    async (userId: string) => {
       try {
         const res = await createConversation.mutateAsync({
-          participant_user_id: contact.user_id,
+          participant_user_id: userId,
           type: 'direct',
         });
         const conv = res?.data;
@@ -136,11 +160,116 @@ export function ContactsScreen() {
     [createConversation, navigation],
   );
 
+  const handleContactPress = useCallback(
+    (contact: Contact) => {
+      void openChatWithUser(contact.user_id);
+    },
+    [openChatWithUser],
+  );
+
+  const handleAddFromSearch = useCallback(
+    (row: ContactSearchResult) => {
+      requestContact.mutate({ contact_user_id: row.id });
+    },
+    [requestContact],
+  );
+
+  const handleRemoveContactById = useCallback(
+    (contactId: string) => {
+      deleteContact.mutate(contactId);
+    },
+    [deleteContact],
+  );
+
+  const handleRemoveSearchRow = useCallback(
+    (row: ContactSearchResult) => {
+      const linked = contacts?.find((c) => c.user_id === row.id);
+      if (linked) {
+        deleteContact.mutate(linked.id);
+      }
+    },
+    [contacts, deleteContact],
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: Contact }) => (
-      <ContactRow contact={item} onPress={() => handleContactPress(item)} />
-    ),
-    [handleContactPress],
+    ({ item }: { item: Contact | ContactSearchResult }) => {
+      if ('user_id' in item) {
+        const incomingPending =
+          item.direction === 'incoming' && item.status === 'pending';
+        if (incomingPending) {
+          return (
+            <ContactRow
+              contact={item}
+              onPress={() => handleContactPress(item)}
+              onAction={() => acceptContact.mutate(item.id)}
+              actionLabel={t('messenger.accept_contact')}
+              actionLoading={
+                acceptContact.isPending && acceptContact.variables === item.id
+              }
+              onSecondaryAction={() => handleRemoveContactById(item.id)}
+              secondaryLabel={t('messenger.decline_contact')}
+              secondaryLoading={
+                deleteContact.isPending && deleteContact.variables === item.id
+              }
+            />
+          );
+        }
+        const removing =
+          deleteContact.isPending && deleteContact.variables === item.id;
+        return (
+          <ContactRow
+            contact={item}
+            onPress={() => handleContactPress(item)}
+            onAction={() => handleRemoveContactById(item.id)}
+            actionLabel={t('messenger.remove_contact_short')}
+            actionLoading={removing}
+          />
+        );
+      }
+
+      const linked = contacts?.find((c) => c.user_id === item.id);
+      const isLinked = !!linked || item.is_contact;
+      const adding =
+        requestContact.isPending &&
+        requestContact.variables?.contact_user_id === item.id;
+      const removing =
+        deleteContact.isPending &&
+        linked != null &&
+        deleteContact.variables === linked.id;
+
+      return (
+        <ContactRow
+          contact={item}
+          onPress={() => void openChatWithUser(item.id)}
+          onAction={
+            isLinked
+              ? () => handleRemoveSearchRow(item)
+              : () => handleAddFromSearch(item)
+          }
+          actionLabel={
+            isLinked
+              ? t('messenger.remove_contact_short')
+              : t('messenger.add_contact_short')
+          }
+          actionLoading={adding || removing}
+        />
+      );
+    },
+    [
+      acceptContact.isPending,
+      acceptContact.variables,
+      contacts,
+      deleteContact.isPending,
+      deleteContact.variables,
+      handleAddFromSearch,
+      handleContactPress,
+      handleRemoveContactById,
+      handleRemoveSearchRow,
+      openChatWithUser,
+      requestContact.isPending,
+      requestContact.variables?.contact_user_id,
+      t,
+    ],
   );
 
   const renderSectionHeader = useCallback(
@@ -173,7 +302,11 @@ export function ContactsScreen() {
     [colors, spacing],
   );
 
-  const keyExtractor = useCallback((item: Contact) => item.id, []);
+  const keyExtractor = useCallback(
+    (item: Contact | ContactSearchResult) =>
+      'user_id' in item ? `c:${item.id}` : `s:${item.id}`,
+    [],
+  );
 
   const ListHeader = useMemo(
     () => (
@@ -197,14 +330,19 @@ export function ContactsScreen() {
               onPress={() => navigation.navigate('MessengerContactSearch')}
               hitSlop={8}
               style={[styles.headerButton, { borderRadius: radius.lg }]}
+              accessibilityRole="button"
+              accessibilityLabel={t('messenger.search_contacts')}
             >
               <Users size={20} color={colors.textSecondary} />
             </Pressable>
             <Pressable
+              onPress={() => navigation.navigate('MessengerChannels' as never)}
               hitSlop={8}
               style={[styles.headerButton, { borderRadius: radius.lg }]}
+              accessibilityRole="button"
+              accessibilityLabel={t('messenger.channels', 'Channels')}
             >
-              <MoreVertical size={20} color={colors.textSecondary} />
+              <Radio size={20} color={colors.textSecondary} />
             </Pressable>
           </View>
         </View>
@@ -224,8 +362,10 @@ export function ContactsScreen() {
           <TextInput
             value={searchText}
             onChangeText={setSearchText}
-            placeholder={t('messenger.search_contacts', 'Search contacts...')}
+            placeholder={t('messenger.search_contacts_placeholder')}
             placeholderTextColor={colors.textTertiary}
+            autoCapitalize="none"
+            autoCorrect={false}
             style={[
               styles.searchInput,
               {
@@ -241,86 +381,28 @@ export function ContactsScreen() {
             </Pressable>
           )}
         </View>
-
-        {/* Quick actions */}
-        <View style={[styles.quickActions, { marginTop: spacing.md, gap: spacing.sm }]}>
-          <Pressable
-            onPress={() => navigation.navigate('MessengerContactSearch')}
-            style={[
-              styles.quickAction,
-              {
-                backgroundColor: colors.brandPrimary + '15',
-                borderColor: colors.brandPrimary + '30',
-                borderRadius: radius.lg,
-                padding: spacing.md,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.quickActionIcon,
-                { backgroundColor: colors.brandPrimary + '25', borderRadius: radius.md },
-              ]}
-            >
-              <UserPlus size={16} color={colors.brandPrimary} />
-            </View>
-            <Text variant="caption" color="primary" style={{ fontWeight: '500' }}>
-              {t('messenger.add_contact', 'Add')}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.quickAction,
-              {
-                backgroundColor: colors.bgSecondary,
-                borderColor: colors.borderDefault,
-                borderRadius: radius.lg,
-                padding: spacing.md,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.quickActionIcon,
-                { backgroundColor: colors.bgTertiary, borderRadius: radius.md },
-              ]}
-            >
-              <Users size={16} color={colors.textSecondary} />
-            </View>
-            <Text variant="caption" color="primary" style={{ fontWeight: '500' }}>
-              {t('messenger.groups', 'Groups')}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => navigation.navigate('MessengerChannels' as any)}
-            style={[
-              styles.quickAction,
-              {
-                backgroundColor: colors.bgSecondary,
-                borderColor: colors.borderDefault,
-                borderRadius: radius.lg,
-                padding: spacing.md,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.quickActionIcon,
-                { backgroundColor: colors.bgTertiary, borderRadius: radius.md },
-              ]}
-            >
-              <Radio size={16} color={colors.textSecondary} />
-            </View>
-            <Text variant="caption" color="primary" style={{ fontWeight: '500' }}>
-              {t('messenger.channels', 'Channels')}
-            </Text>
-          </Pressable>
-        </View>
+        {searchText.trim().length >= 2 &&
+        searchGlobalFetching &&
+        !requestContact.isPending &&
+        !deleteContact.isPending ? (
+          <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.lg, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={colors.brandPrimary} />
+          </View>
+        ) : null}
       </View>
     ),
-    [insets.top, spacing, colors, radius, searchText, navigation, t],
+    [
+      insets.top,
+      spacing,
+      colors,
+      radius,
+      searchText,
+      searchGlobalFetching,
+      requestContact.isPending,
+      deleteContact.isPending,
+      navigation,
+      t,
+    ],
   );
 
   return (
@@ -351,19 +433,26 @@ export function ContactsScreen() {
           {ListHeader}
           <View style={styles.centered}>
             {searchText.trim() ? (
-              <>
-                <View
-                  style={[
-                    styles.emptyIcon,
-                    { backgroundColor: colors.bgSecondary, borderRadius: radius.lg },
-                  ]}
-                >
-                  <Search size={32} color={colors.textTertiary} />
-                </View>
-                <Text variant="bodyMd" color="secondary" style={{ marginTop: spacing.md }}>
-                  {t('messenger.contacts_not_found', 'No contacts found')}
-                </Text>
-              </>
+              searchText.trim().length >= 2 &&
+              searchGlobalFetching &&
+              !requestContact.isPending &&
+              !deleteContact.isPending ? (
+                <ActivityIndicator color={colors.brandPrimary} size="large" />
+              ) : (
+                <>
+                  <View
+                    style={[
+                      styles.emptyIcon,
+                      { backgroundColor: colors.bgSecondary, borderRadius: radius.lg },
+                    ]}
+                  >
+                    <Search size={32} color={colors.textTertiary} />
+                  </View>
+                  <Text variant="bodyMd" color="secondary" style={{ marginTop: spacing.md }}>
+                    {t('messenger.contacts_not_found')}
+                  </Text>
+                </>
+              )
             ) : (
               <Text variant="bodyMd" color="secondary">
                 {t('messenger.no_contacts')}
@@ -434,19 +523,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
-  },
-  quickActions: {
-    flexDirection: 'row',
-  },
-  quickAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-  },
-  quickActionIcon: {
-    padding: 8,
   },
   sectionHeader: {
     flexDirection: 'row',

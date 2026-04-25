@@ -20,9 +20,10 @@ import { useAuth } from '~/lib/hooks/useAuth';
 import { authApi } from '~/lib/api/auth';
 import { LANGUAGES } from '~/i18n';
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as WebBrowser from 'expo-web-browser';
+import { clearVideoCache, getVideoCacheTotalBytesAsync } from '~/lib/video/videoCache';
 
 type ConnectionStatus = 'idle' | 'checking' | 'ok' | 'error';
 
@@ -40,11 +41,22 @@ export default function SettingsScreen() {
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cacheClearing, setCacheClearing] = useState(false);
+  const [videoCacheClearing, setVideoCacheClearing] = useState(false);
+  const [videoCacheBytes, setVideoCacheBytes] = useState<number | null>(null);
   const [biometricAvailable, setBiometricAvailable] = useState<boolean | null>(null);
+
+  const refreshVideoCacheSize = useCallback(async () => {
+    const n = await getVideoCacheTotalBytesAsync();
+    setVideoCacheBytes(n);
+  }, []);
 
   useEffect(() => {
     LocalAuthentication.hasHardwareAsync().then((has) => setBiometricAvailable(has));
   }, []);
+
+  useEffect(() => {
+    void refreshVideoCacheSize();
+  }, [refreshVideoCacheSize]);
 
   const testConnection = useCallback(async () => {
     setStatus('checking');
@@ -76,13 +88,27 @@ export default function SettingsScreen() {
           await FileSystem.deleteAsync(`${dir}${item}`, { idempotent: true });
         }
       }
+      await refreshVideoCacheSize();
       Alert.alert(t('settings.done'), t('settings.cache_cleared'));
     } catch {
       Alert.alert(t('common.error'), t('settings.cache_failed'));
     } finally {
       setCacheClearing(false);
     }
-  }, [t]);
+  }, [t, refreshVideoCacheSize]);
+
+  const clearVideoFeedCache = useCallback(async () => {
+    setVideoCacheClearing(true);
+    try {
+      await clearVideoCache();
+      await refreshVideoCacheSize();
+      Alert.alert(t('settings.done'), t('settings.cache_cleared'));
+    } catch {
+      Alert.alert(t('common.error'), t('settings.cache_failed'));
+    } finally {
+      setVideoCacheClearing(false);
+    }
+  }, [t, refreshVideoCacheSize]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
@@ -191,10 +217,31 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{t('settings.cache')}</Text>
+        <Text variant="bodySm" color="secondary" style={{ marginBottom: 8 }}>
+          {t('settings.clear_all_cache_hint')}
+        </Text>
+        <Text variant="bodySm" style={{ color: colors.textSecondary, marginBottom: 8 }}>
+          {videoCacheBytes == null
+            ? '—'
+            : videoCacheBytes === 0
+              ? t('settings.video_cache_empty')
+              : t('settings.video_cache_size', { mb: (videoCacheBytes / (1024 * 1024)).toFixed(1) })}
+        </Text>
+        <TouchableOpacity
+          onPress={clearVideoFeedCache}
+          disabled={videoCacheClearing}
+          style={[styles.button, { backgroundColor: colors.bgTertiary, marginTop: 8 }]}
+        >
+          {videoCacheClearing ? (
+            <ActivityIndicator size="small" color={colors.textPrimary} />
+          ) : (
+            <Text style={[styles.buttonText, { color: colors.textPrimary }]}>{t('settings.clear_video_cache')}</Text>
+          )}
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={clearCache}
           disabled={cacheClearing}
-          style={[styles.button, { backgroundColor: colors.bgTertiary }]}
+          style={[styles.button, { backgroundColor: colors.bgTertiary, marginTop: 12 }]}
         >
           {cacheClearing ? <ActivityIndicator size="small" color={colors.textPrimary} /> : <Text style={[styles.buttonText, { color: colors.textPrimary }]}>{t('settings.clear_image_cache')}</Text>}
         </TouchableOpacity>

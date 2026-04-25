@@ -2,12 +2,14 @@ import { memo, useEffect, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEvent } from 'expo';
+import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { VideoActionBar } from './VideoActionBar';
 import { ProductOverlay } from './ProductOverlay';
 import { FloatingComments } from './FloatingComments';
 import { Text } from '~/components/ui/Text';
 import { videoApi } from '~/lib/api/video';
+import { analytics } from '~/lib/analytics/analyticsService';
 import type { VideoFeedItem as VideoFeedItemType } from '~/types/content';
 
 type Props = {
@@ -15,12 +17,24 @@ type Props = {
   isActive: boolean;
   /** Create native player & buffer data even if not yet playing. */
   shouldPreload: boolean;
+  /** Resolved remote or file:// URI for playback. */
+  playableUri: string;
+  posterUrl?: string | null;
   height: number;
   onOpenComments?: (videoId: string) => void;
   onOpenShare?: (videoId: string) => void;
 };
 
-function VideoFeedItemInner({ item, isActive, shouldPreload, height, onOpenComments, onOpenShare }: Props) {
+function VideoFeedItemInner({
+  item,
+  isActive,
+  shouldPreload,
+  playableUri,
+  posterUrl,
+  height,
+  onOpenComments,
+  onOpenShare,
+}: Props) {
   const showProduct = !!item.product;
   const sellerBottom = showProduct ? 200 : 32;
 
@@ -41,8 +55,11 @@ function VideoFeedItemInner({ item, isActive, shouldPreload, height, onOpenComme
 
   return (
     <ActivePlayer
+      key={`${item.id}-${playableUri}`}
       item={item}
       isActive={isActive}
+      playableUri={playableUri}
+      posterUrl={posterUrl}
       height={height}
       showProduct={showProduct}
       sellerBottom={sellerBottom}
@@ -57,6 +74,8 @@ export const VideoFeedItem = memo(VideoFeedItemInner);
 type ActivePlayerProps = {
   item: VideoFeedItemType;
   isActive: boolean;
+  playableUri: string;
+  posterUrl?: string | null;
   height: number;
   showProduct: boolean;
   sellerBottom: number;
@@ -67,20 +86,44 @@ type ActivePlayerProps = {
 function ActivePlayer({
   item,
   isActive,
+  playableUri,
+  posterUrl,
   height,
   showProduct,
   sellerBottom,
   onOpenComments,
   onOpenShare,
 }: ActivePlayerProps) {
-  const player = useVideoPlayer(item.video.url, (p) => {
+  const player = useVideoPlayer(playableUri, (p) => {
     p.loop = true;
   });
 
+  const mountTime = useRef(Date.now());
+  const ttfLogged = useRef(false);
   const viewLogged = useRef(false);
 
   useEffect(() => {
-    if (!isActive || viewLogged.current) {
+    mountTime.current = Date.now();
+    ttfLogged.current = false;
+  }, [playableUri, item.id]);
+
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+
+  useEffect(() => {
+    if (!isActive || ttfLogged.current) return;
+    if (status === 'readyToPlay') {
+      ttfLogged.current = true;
+      analytics.track('VideoTimeToFirstFrame', {
+        video_id: item.id,
+        ms: Date.now() - mountTime.current,
+      });
+    }
+  }, [status, isActive, item.id]);
+
+  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+
+  useEffect(() => {
+    if (!isActive || !isPlaying || viewLogged.current) {
       return;
     }
     const timer = setTimeout(() => {
@@ -88,7 +131,7 @@ function ActivePlayer({
       videoApi.recordView(item.id).catch(() => {});
     }, 3000);
     return () => clearTimeout(timer);
-  }, [isActive, item.id]);
+  }, [isActive, isPlaying, item.id]);
 
   useEffect(() => {
     if (isActive) {
@@ -98,8 +141,6 @@ function ActivePlayer({
     }
   }, [isActive, player]);
 
-  const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
-
   const togglePlayPause = () => {
     if (isPlaying) {
       player.pause();
@@ -108,8 +149,18 @@ function ActivePlayer({
     }
   };
 
+  const showPoster = Boolean(posterUrl) && (!isActive || !isPlaying);
+
   return (
     <Pressable style={[styles.container, { height }]} onPress={togglePlayPause}>
+      {showPoster ? (
+        <Image
+          source={{ uri: posterUrl! }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
+      ) : null}
       <VideoView
         style={StyleSheet.absoluteFill}
         player={player}

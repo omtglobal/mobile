@@ -64,6 +64,8 @@ export interface Contact {
   account_type: AccountType;
   status: 'pending' | 'accepted' | 'blocked';
   group_id: string | null;
+  /** From API: requester vs recipient for this contact row */
+  direction?: 'incoming' | 'outgoing';
 }
 
 export interface ContactSearchResult {

@@ -1,4 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { queryKeys } from '~/constants/queryKeys';
 import { useAuthStore } from '~/lib/stores/auth';
 import * as messagingApi from '~/lib/api/messaging';
@@ -16,6 +22,7 @@ import type {
   MessageType,
   MessageMetadata,
 } from '~/types/messaging';
+import { normalizeMessagingSearchQuery } from '~/lib/messaging/searchQuery';
 import type { ApiResponse, PaginatedResponse } from '~/types/api';
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -26,13 +33,30 @@ function useMessagingAuthReady(): boolean {
   return isHydrated && !!token;
 }
 
+/** Dev-only: trace contact list / add-contact API for backend vs client issues. */
+function debugContactsApi(event: string, detail: unknown): void {
+  if (!__DEV__) return;
+  const max = 2800;
+  try {
+    const text =
+      typeof detail === 'string'
+        ? detail
+        : JSON.stringify(detail, null, 2);
+    console.log(`[messaging/contacts] ${event}`, text.length > max ? `${text.slice(0, max)}…` : text);
+  } catch {
+    console.log(`[messaging/contacts] ${event}`, detail);
+  }
+}
+
 function rowsFromPaginatedBody<T>(
   res: PaginatedResponse<T> | ApiResponse<T[]>,
 ): T[] {
   const d = res.data;
   if (Array.isArray(d)) return d;
-  if (d && typeof d === 'object' && 'data' in d && Array.isArray((d as Record<string, unknown>).data)) {
-    return (d as unknown as { data: T[] }).data;
+  if (d && typeof d === 'object' && d !== null) {
+    const rec = d as Record<string, unknown>;
+    if (Array.isArray(rec.data)) return rec.data as T[];
+    if (Array.isArray(rec.items)) return rec.items as T[];
   }
   return [];
 }
@@ -180,21 +204,138 @@ export function useContactsQuery() {
 
   return useQuery<ApiResponse<Contact[]>, Error, Contact[]>({
     queryKey: queryKeys.messaging.contacts,
-    queryFn: () => messagingApi.getContacts(),
+    queryFn: async () => {
+      try {
+        const res = await messagingApi.getContacts();
+        const parsed = rowsFromPaginatedBody(res);
+        debugContactsApi(
+          `GET …/messaging/contacts → parsed.length=${parsed.length}`,
+          res,
+        );
+        return res;
+      } catch (e) {
+        if (isAxiosError(e)) {
+          debugContactsApi('GET …/messaging/contacts FAILED', {
+            status: e.response?.status,
+            data: e.response?.data,
+            message: e.message,
+          });
+        } else {
+          debugContactsApi('GET …/messaging/contacts FAILED (non-axios)', e);
+        }
+        throw e;
+      }
+    },
     enabled: authReady,
-    select: (res) => rowsFromPaginatedBody(res),
+    select: (res) => {
+      const rows = rowsFromPaginatedBody(res);
+      return rows
+        .map((row) => normalizeContactFromApi(row))
+        .filter((c): c is Contact => c != null);
+    },
   });
 }
 
 export function useContactSearchQuery(q: string) {
   const authReady = useMessagingAuthReady();
-  const trimmed = q.trim();
+  const normalized = normalizeMessagingSearchQuery(q);
 
   return useQuery<ApiResponse<ContactSearchResult[]>, Error, ContactSearchResult[]>({
-    queryKey: queryKeys.messaging.contactSearch(trimmed),
-    queryFn: () => messagingApi.searchContacts(trimmed),
-    enabled: authReady && trimmed.length >= 2,
+    queryKey: queryKeys.messaging.contactSearch(normalized),
+    queryFn: () => messagingApi.searchContacts(normalized),
+    enabled: authReady && normalized.length >= 2,
     select: (res) => rowsFromPaginatedBody(res),
+  });
+}
+
+function invalidateContactsList(qc: QueryClient) {
+  void qc.invalidateQueries({
+    queryKey: queryKeys.messaging.contacts,
+    exact: true,
+  });
+}
+
+/** Unwrap nested API shapes before mapping to Contact. */
+function rawContactPayloadFromResponse(data: unknown): unknown {
+  if (data == null || typeof data !== 'object') return null;
+  const o = data as Record<string, unknown>;
+  if (o.contact && typeof o.contact === 'object') return o.contact;
+  const inner = o.data;
+  if (inner && typeof inner === 'object' && !Array.isArray(inner)) return inner;
+  return data;
+}
+
+function normalizeContactFromApi(raw: unknown): Contact | null {
+  const payload = rawContactPayloadFromResponse(raw);
+  if (payload == null || typeof payload !== 'object') return null;
+  const o = payload as Record<string, unknown>;
+  const idRaw = o.id ?? o.contact_id;
+  const userIdRaw = o.user_id ?? o.contact_user_id ?? o.userId;
+  if (idRaw == null || userIdRaw == null) return null;
+  const id = String(idRaw);
+  const user_id = String(userIdRaw);
+  const accountRaw = o.account_type ?? o.accountType;
+  const account_type: Contact['account_type'] =
+    accountRaw === 'seller' || accountRaw === 'support' || accountRaw === 'buyer'
+      ? accountRaw
+      : 'buyer';
+  const statusRaw = o.status;
+  const status: Contact['status'] =
+    statusRaw === 'accepted' || statusRaw === 'blocked' || statusRaw === 'pending'
+      ? statusRaw
+      : 'pending';
+  const name = typeof o.name === 'string' ? o.name : '';
+  const avatar_url =
+    typeof o.avatar_url === 'string'
+      ? o.avatar_url
+      : typeof o.avatarUrl === 'string'
+        ? o.avatarUrl
+        : null;
+  const groupRaw = o.group_id ?? o.groupId;
+  const group_id = typeof groupRaw === 'string' ? groupRaw : null;
+
+  const dirRaw = o.direction;
+  const direction: Contact['direction'] =
+    dirRaw === 'incoming' || dirRaw === 'outgoing' ? dirRaw : undefined;
+
+  return {
+    id,
+    user_id,
+    name,
+    avatar_url,
+    account_type,
+    status,
+    group_id,
+    direction,
+  };
+}
+
+function upsertContactInList(list: Contact[], fresh: Contact): Contact[] {
+  const byId = list.findIndex((c) => c.id === fresh.id);
+  if (byId >= 0) {
+    return list.map((c, i) => (i === byId ? fresh : c));
+  }
+  const byPeer = list.findIndex((c) => c.user_id === fresh.user_id);
+  if (byPeer >= 0) {
+    return list.map((c, i) => (i === byPeer ? fresh : c));
+  }
+  return [...list, fresh];
+}
+
+function mergeContactIntoContactsCache(
+  qc: QueryClient,
+  fresh: Contact,
+): void {
+  qc.setQueryData<ApiResponse<Contact[]>>(queryKeys.messaging.contacts, (prev) => {
+    const fromPrev = prev ? rowsFromPaginatedBody(prev) : [];
+    const list = fromPrev
+      .map((row) => normalizeContactFromApi(row))
+      .filter((c): c is Contact => c != null);
+    const merged = upsertContactInList(list, fresh);
+    if (prev && typeof prev === 'object') {
+      return { ...prev, data: merged } as ApiResponse<Contact[]>;
+    }
+    return { success: true, message: '', data: merged };
   });
 }
 
@@ -204,8 +345,29 @@ export function useRequestContactMutation() {
   return useMutation({
     mutationFn: (variables: { contact_user_id: string }) =>
       messagingApi.requestContact(variables),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.messaging.contacts });
+    onSuccess: (apiRes) => {
+      debugContactsApi('POST …/messaging/contacts success (raw)', apiRes);
+      const normalized = normalizeContactFromApi(apiRes?.data);
+      if (normalized) {
+        mergeContactIntoContactsCache(qc, normalized);
+      } else {
+        debugContactsApi(
+          'POST …/messaging/contacts: response could not be mapped to Contact (check backend `data` shape)',
+          apiRes?.data,
+        );
+      }
+      invalidateContactsList(qc);
+    },
+    onError: (err) => {
+      if (isAxiosError(err)) {
+        debugContactsApi('POST …/messaging/contacts FAILED', {
+          status: err.response?.status,
+          data: err.response?.data,
+          message: err.message,
+        });
+      } else {
+        debugContactsApi('POST …/messaging/contacts FAILED (non-axios)', err);
+      }
     },
   });
 }
@@ -215,8 +377,23 @@ export function useAcceptContactMutation() {
 
   return useMutation({
     mutationFn: (contactId: string) => messagingApi.acceptContact(contactId),
+    onSuccess: (apiRes) => {
+      const normalized = normalizeContactFromApi(apiRes?.data);
+      if (normalized) {
+        mergeContactIntoContactsCache(qc, normalized);
+      }
+      invalidateContactsList(qc);
+    },
+  });
+}
+
+export function useDeleteContactMutation() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: (contactId: string) => messagingApi.deleteContact(contactId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.messaging.contacts });
+      invalidateContactsList(qc);
     },
   });
 }
@@ -265,7 +442,7 @@ export function useDeleteContactGroupMutation() {
     mutationFn: (id: string) => messagingApi.deleteContactGroup(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.messaging.contactGroups });
-      void qc.invalidateQueries({ queryKey: queryKeys.messaging.contacts });
+      invalidateContactsList(qc);
     },
   });
 }
@@ -277,7 +454,7 @@ export function useUpdateContactMutation() {
     mutationFn: ({ id, ...body }: { id: string; group_id?: string | null }) =>
       messagingApi.updateContact(id, body),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.messaging.contacts });
+      invalidateContactsList(qc);
     },
   });
 }

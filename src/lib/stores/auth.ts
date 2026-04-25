@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { setAuthToken, registerSessionExpiredCallback, registerTokenRefreshedCallback } from '~/lib/api/authToken';
 import { clearQueryCacheOnLogout } from '~/lib/api/queryClientRef';
 import { authApi } from '~/lib/api/auth';
+import { ensureAccessTokenFresh } from '~/lib/api/refreshAccessToken';
 import { tokenStorage } from '~/lib/utils/tokenStorage';
 import { mmkvStorage } from '~/lib/utils/storage';
 import type { LoginData, RegisterData, User } from '~/types/models';
@@ -15,7 +16,7 @@ interface AuthState {
   isHydrated: boolean;
 
   setHydrated: () => void;
-  setToken: (token: string | null) => Promise<void>;
+  setToken: (token: string | null, expiresInSec?: number) => Promise<void>;
   login: (data: LoginData) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
@@ -24,10 +25,13 @@ interface AuthState {
   deleteAccount: (data?: { password?: string; reason?: string }) => Promise<void>;
 }
 
-async function syncTokenToClient(token: string | null): Promise<void> {
+async function syncTokenToClient(token: string | null, expiresInSec?: number): Promise<void> {
   setAuthToken(token);
   if (token) {
     await tokenStorage.setToken(token);
+    if (expiresInSec != null && expiresInSec > 0) {
+      await tokenStorage.setExpiresAt(Date.now() + expiresInSec * 1000);
+    }
   } else {
     await tokenStorage.removeToken();
   }
@@ -43,8 +47,8 @@ export const useAuthStore = create<AuthState>()(
 
       setHydrated: () => set({ isHydrated: true }),
 
-      setToken: async (token) => {
-        await syncTokenToClient(token);
+      setToken: async (token, expiresInSec) => {
+        await syncTokenToClient(token, expiresInSec);
         set({ token, ...(token ? { isHydrated: true } : {}) });
       },
 
@@ -53,7 +57,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const res = await authApi.login(data);
           const token = res.data.access_token;
-          await syncTokenToClient(token);
+          await syncTokenToClient(token, res.data.expires_in);
           set({
             token,
             user: res.data.user,
@@ -71,7 +75,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const res = await authApi.register(data);
           const token = res.data.access_token;
-          await syncTokenToClient(token);
+          await syncTokenToClient(token, res.data.expires_in);
           set({
             token,
             user: res.data.user,
@@ -122,7 +126,7 @@ export const useAuthStore = create<AuthState>()(
           set({ user: res.data });
         } catch (e) {
           const status = e instanceof AxiosError ? e.response?.status : undefined;
-          if (status === 401 || status === 403) {
+          if (status === 401) {
             await get().clearSession();
           }
           throw e;
@@ -149,16 +153,21 @@ export const useAuthStore = create<AuthState>()(
         // Restore token from the Keychain (source of truth). This is async, so
         // isHydrated is set to true only after the read completes, preventing
         // auth-gated screens from rendering before the token is available.
-        tokenStorage.getToken().then((token) => {
-          if (token) {
+        void (async () => {
+          try {
+            const token = await tokenStorage.getToken();
+            if (!token) {
+              useAuthStore.getState().setHydrated();
+              return;
+            }
             setAuthToken(token);
-            useAuthStore.setState({ token, isHydrated: true });
-          } else {
+            useAuthStore.setState({ token });
+            await ensureAccessTokenFresh();
+            useAuthStore.setState({ isHydrated: true });
+          } catch {
             useAuthStore.getState().setHydrated();
           }
-        }).catch(() => {
-          useAuthStore.getState().setHydrated();
-        });
+        })();
       },
     }
   )
@@ -168,7 +177,6 @@ registerSessionExpiredCallback(() => {
   useAuthStore.getState().clearSession().catch(() => {});
 });
 
-registerTokenRefreshedCallback((newToken) => {
-  const s = useAuthStore.getState();
-  s.setToken(newToken).catch(() => {});
+registerTokenRefreshedCallback((newToken, expiresInSec) => {
+  useAuthStore.getState().setToken(newToken, expiresInSec).catch(() => {});
 });

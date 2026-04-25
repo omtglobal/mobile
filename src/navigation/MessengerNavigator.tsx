@@ -19,7 +19,6 @@ import { ChannelsScreen } from '~/screens/messenger/ChannelsScreen';
 import { CreateChannelScreen } from '~/screens/messenger/CreateChannelScreen';
 import { ChannelViewScreen } from '~/screens/messenger/ChannelViewScreen';
 import { CreatePostScreen } from '~/screens/messenger/CreatePostScreen';
-import { StickersScreen } from '~/screens/messenger/StickersScreen';
 
 export type MessengerStackParamList = {
   MessengerHome: undefined;
@@ -35,7 +34,6 @@ export type MessengerStackParamList = {
   MessengerCreateChannel: undefined;
   MessengerChannelView: { channelId: string };
   MessengerCreatePost: { channelId: string };
-  MessengerStickers: { conversationId?: string };
 };
 
 export const messengerNavigationRef =
@@ -84,7 +82,6 @@ export function MessengerNavigator() {
           <Stack.Screen name="MessengerCreateChannel" component={CreateChannelScreen} />
           <Stack.Screen name="MessengerChannelView" component={ChannelViewScreen} />
           <Stack.Screen name="MessengerCreatePost" component={CreatePostScreen} />
-          <Stack.Screen name="MessengerStickers" component={StickersScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </NavigationIndependentTree>

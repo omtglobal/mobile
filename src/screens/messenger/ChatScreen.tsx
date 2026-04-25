@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
+  Platform,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, Phone, Video, MoreVertical } from 'lucide-react-native';
+import { ArrowLeft, MoreVertical } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { Text } from '~/components/ui';
@@ -16,12 +18,13 @@ import {
   ChatBubble,
   ChatWallpaper,
   ChatBottomPanel,
+  ChatLoadingDots,
   DateDivider,
   MessageInput,
   MessengerLoginPrompt,
   TypingIndicator,
 } from '~/components/messenger';
-import type { MessageInputRef, BottomPanelTab } from '~/components/messenger';
+import type { MessageInputRef } from '~/components/messenger';
 import {
   useConversation,
   useMessages,
@@ -36,6 +39,10 @@ import {
 import { usePreferencesStore } from '~/lib/stores/preferences';
 import { findWallpaper } from '~/constants/wallpapers';
 import { isAuthHttpError } from '~/lib/utils/authErrors';
+import {
+  getConversationPeer,
+  resolveConversationTitle,
+} from '~/lib/messaging/conversationDisplay';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { MessengerStackParamList } from '~/navigation/MessengerNavigator';
@@ -72,7 +79,9 @@ export function ChatScreen() {
 
   const listRef = useRef<FlatList<ListItem>>(null);
   const inputRef = useRef<MessageInputRef>(null);
-  const [panelTab, setPanelTab] = useState<BottomPanelTab | null>(null);
+  const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
+  /** iOS: inset from KeyboardAvoidingView is unreliable inside PagerView + nested stack; use frame height. */
+  const [iosKeyboardHeight, setIosKeyboardHeight] = useState(0);
 
   const chatWallpaperId = usePreferencesStore((s) => s.chatWallpaperId);
   const wallpaper = useMemo(() => findWallpaper(chatWallpaperId ?? undefined), [chatWallpaperId]);
@@ -104,20 +113,19 @@ export function ChatScreen() {
 
   const participantName = useMemo(() => {
     if (!conversation) return '';
-    if (conversation.company) return conversation.company.name;
-    const other = conversation.participants.find((p) => p.id !== user?.id);
-    return other?.name ?? '';
-  }, [conversation, user?.id]);
+    const title = resolveConversationTitle(conversation, user?.id);
+    return title || t('messenger.chat');
+  }, [conversation, user?.id, t]);
 
   const isOnline = useMemo(() => {
     if (!conversation) return false;
-    const other = conversation.participants.find((p) => p.id !== user?.id);
+    const other = getConversationPeer(conversation, user?.id);
     return other?.is_online ?? false;
   }, [conversation, user?.id]);
 
   const otherParticipantId = useMemo(() => {
     if (!conversation) return undefined;
-    const other = conversation.participants.find((p) => p.id !== user?.id);
+    const other = getConversationPeer(conversation, user?.id);
     return other?.id;
   }, [conversation, user?.id]);
 
@@ -149,22 +157,34 @@ export function ChatScreen() {
     }
   }, [listItems.length]);
 
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      const onShow = Keyboard.addListener('keyboardWillShow', (e) => {
+        setIosKeyboardHeight(e.endCoordinates.height);
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToEnd({ animated: true });
+        });
+      });
+      const onHide = Keyboard.addListener('keyboardWillHide', () => {
+        setIosKeyboardHeight(0);
+      });
+      return () => {
+        onShow.remove();
+        onHide.remove();
+      };
+    }
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated: true });
+      });
+    });
+    return () => sub.remove();
+  }, [conversationId]);
+
   const handleSend = useCallback(
     (text: string) => {
       sendMessage.mutate({ type: 'text', content: text });
-      setPanelTab(null);
-    },
-    [sendMessage],
-  );
-
-  const handleStickerSelect = useCallback(
-    (emoji: string) => {
-      sendMessage.mutate({
-        type: 'sticker',
-        content: emoji,
-        metadata: { sticker_emoji: emoji },
-      });
-      setPanelTab(null);
+      setEmojiPanelOpen(false);
     },
     [sendMessage],
   );
@@ -176,12 +196,8 @@ export function ChatScreen() {
     [],
   );
 
-  const handlePanelPress = useCallback(() => {
-    setPanelTab((prev) => (prev ? null : 'stickers'));
-  }, []);
-
   const handleEmojiPress = useCallback(() => {
-    setPanelTab((prev) => (prev === 'emoji' ? null : 'emoji'));
+    setEmojiPanelOpen((v) => !v);
   }, []);
 
   const handleContactProfile = useCallback(() => {
@@ -189,6 +205,18 @@ export function ChatScreen() {
       navigation.navigate('MessengerContactProfile' as any, { userId: otherParticipantId });
     }
   }, [navigation, otherParticipantId]);
+
+  const handleInputFocus = useCallback(() => {
+    // iOS: closing the emoji panel in the same turn as TextInput focus can steal first responder.
+    setEmojiPanelOpen((open) => {
+      if (!open) return open;
+      if (Platform.OS === 'ios') {
+        requestAnimationFrame(() => setEmojiPanelOpen(false));
+        return true;
+      }
+      return false;
+    });
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {
@@ -221,9 +249,12 @@ export function ChatScreen() {
 
   const isLoading = convLoading || msgLoading;
 
+  const inputOuterPaddingBottom =
+    Platform.OS === 'ios' && iosKeyboardHeight > 0 ? spacing.sm : insets.bottom;
+
   return (
     <View style={[styles.flex, { backgroundColor: colors.bgPrimary }]}>
-      {/* Header */}
+      {/* Header stays fixed; keyboard inset applies only to the area below (PagerView + stack otherwise breaks KAV). */}
       <View
         style={[
           styles.header,
@@ -272,81 +303,72 @@ export function ChatScreen() {
             hitSlop={8}
             style={[styles.headerActionBtn, { borderRadius: radius.lg }]}
           >
-            <Phone size={20} color={colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            hitSlop={8}
-            style={[styles.headerActionBtn, { borderRadius: radius.lg }]}
-          >
-            <Video size={20} color={colors.textSecondary} />
-          </Pressable>
-          <Pressable
-            hitSlop={8}
-            style={[styles.headerActionBtn, { borderRadius: radius.lg }]}
-          >
             <MoreVertical size={20} color={colors.textSecondary} />
           </Pressable>
         </View>
       </View>
 
-      {/* Messages */}
-      {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.brandPrimary} />
+      <View
+        style={[
+          styles.flex,
+          Platform.OS === 'ios' ? { paddingBottom: iosKeyboardHeight } : null,
+        ]}
+      >
+        <View style={styles.messagesArea}>
+          {isLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={colors.brandPrimary} />
+            </View>
+          ) : (convError || msgError) ? (
+            <View style={styles.centered}>
+              <Text variant="bodyMd" color="secondary" style={{ marginBottom: spacing.md }}>
+                {t('messenger.error_loading')}
+              </Text>
+              <Pressable onPress={() => refetchMessages()}>
+                <Text variant="bodyMd" color="brand">
+                  {t('messenger.retry')}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.messagesSurface}>
+              {msgFetching && !msgLoading ? (
+                <View style={styles.fetchOverlay} pointerEvents="none">
+                  <ChatLoadingDots />
+                </View>
+              ) : null}
+              <ChatWallpaper wallpaper={wallpaper} fallbackColor={colors.bgPrimary}>
+                <FlatList
+                  ref={listRef}
+                  data={listItems}
+                  renderItem={renderItem}
+                  keyExtractor={keyExtractor}
+                  keyboardShouldPersistTaps="always"
+                  keyboardDismissMode="interactive"
+                  contentContainerStyle={{ paddingVertical: spacing.sm }}
+                  ListFooterComponent={<TypingIndicator names={typingNames} />}
+                />
+              </ChatWallpaper>
+            </View>
+          )}
         </View>
-      ) : (convError || msgError) ? (
-        <View style={styles.centered}>
-          <Text variant="bodyMd" color="secondary" style={{ marginBottom: spacing.md }}>
-            {t('messenger.error_loading')}
-          </Text>
-          <Pressable onPress={() => refetchMessages()}>
-            <Text variant="bodyMd" color="brand">
-              {t('messenger.retry')}
-            </Text>
-          </Pressable>
+
+        {emojiPanelOpen ? (
+          <ChatBottomPanel
+            onClose={() => setEmojiPanelOpen(false)}
+            onEmojiSelect={handleEmojiSelect}
+          />
+        ) : null}
+
+        <View style={{ paddingBottom: inputOuterPaddingBottom }}>
+          <MessageInput
+            ref={inputRef}
+            onSend={handleSend}
+            disabled={sendMessage.isPending}
+            onEmojiPress={handleEmojiPress}
+            onInputFocus={handleInputFocus}
+          />
         </View>
-      ) : (
-        <ChatWallpaper wallpaper={wallpaper} fallbackColor={colors.bgPrimary}>
-          <FlatList
-            ref={listRef}
-            data={listItems}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={{ paddingVertical: spacing.sm }}
-          ListHeaderComponent={
-            msgFetching && !msgLoading ? (
-              <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}>
-                <ActivityIndicator size="small" color={colors.brandPrimary} />
-              </View>
-            ) : null
-          }
-          ListFooterComponent={
-            <TypingIndicator names={typingNames} />
-          }
-        />
-        </ChatWallpaper>
-      )}
-
-      {/* Bottom Panel (Emoji / Stickers) */}
-      {panelTab != null && (
-        <ChatBottomPanel
-          activeTab={panelTab}
-          onTabChange={setPanelTab}
-          onClose={() => setPanelTab(null)}
-          onEmojiSelect={handleEmojiSelect}
-          onStickerSelect={handleStickerSelect}
-        />
-      )}
-
-      {/* Input */}
-      <View style={{ paddingBottom: insets.bottom }}>
-        <MessageInput
-          ref={inputRef}
-          onSend={handleSend}
-          disabled={sendMessage.isPending}
-          onPanelPress={handlePanelPress}
-          onEmojiPress={handleEmojiPress}
-        />
       </View>
     </View>
   );
@@ -355,6 +377,22 @@ export function ChatScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  messagesArea: {
+    flex: 1,
+    minHeight: 0,
+  },
+  messagesSurface: {
+    flex: 1,
+    position: 'relative',
+  },
+  fetchOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 0,
+    right: 0,
+    zIndex: 8,
+    alignItems: 'center',
   },
   centered: {
     flex: 1,

@@ -24,12 +24,14 @@ export function notifySessionExpired(): void {
 }
 
 /** Callback invoked after a successful token refresh so the store can persist it. */
-let _onTokenRefreshed: ((newToken: string) => void) | null = null;
+let _onTokenRefreshed: ((newToken: string, expiresInSec?: number) => void) | null = null;
 
-export function registerTokenRefreshedCallback(cb: (newToken: string) => void): void {
+export function registerTokenRefreshedCallback(
+  cb: (newToken: string, expiresInSec?: number) => void,
+): void {
   _onTokenRefreshed = cb;
 }
 
-export function notifyTokenRefreshed(newToken: string): void {
-  _onTokenRefreshed?.(newToken);
+export function notifyTokenRefreshed(newToken: string, expiresInSec?: number): void {
+  _onTokenRefreshed?.(newToken, expiresInSec);
 }

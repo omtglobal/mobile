@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 import type { ApiResponse, PaginatedResponse } from '~/types/api';
-import type { VideoFeedItem } from '~/types/content';
+import type { VideoFeedItem, VideoMeta, VideoVariant, VideoVariantQuality } from '~/types/content';
 
 export interface VideoFeedPage {
   items: VideoFeedItem[];
@@ -14,11 +14,59 @@ export interface VideoCommentDto {
   created_at: string;
 }
 
+function mapVariant(r: Record<string, unknown>): VideoVariant {
+  const mime = (r.mime_type ?? r.mimeType) as string | undefined;
+  const br = r.bitrate_kbps ?? r.bitrateKbps;
+  const sz = r.size_bytes ?? r.sizeBytes;
+  return {
+    quality: r.quality as VideoVariantQuality,
+    url: String(r.url),
+    ...(mime && { mimeType: mime as VideoVariant['mimeType'] }),
+    ...(br != null && { bitrateKbps: Number(br) }),
+    ...(r.width != null && { width: Number(r.width) }),
+    ...(r.height != null && { height: Number(r.height) }),
+    ...(sz != null && { sizeBytes: Number(sz) }),
+  };
+}
+
+function normalizeVideoMeta(raw: unknown): VideoMeta {
+  if (!raw || typeof raw !== 'object') {
+    return { id: '', filename: '', url: '' };
+  }
+  const o = raw as Record<string, unknown>;
+  const variantsRaw = o.variants ?? o.variants;
+  let variants: VideoMeta['variants'];
+  if (Array.isArray(variantsRaw)) {
+    variants = variantsRaw
+      .filter((v) => v && typeof v === 'object')
+      .map((v) => mapVariant(v as Record<string, unknown>));
+  }
+
+  const sourceType = o.source_type ?? o.sourceType;
+  const hlsUrl = o.hls_url ?? o.hlsUrl;
+  const posterUrl = o.poster_url ?? o.posterUrl;
+  const thumbnailUrl = o.thumbnail_url ?? o.thumbnailUrl;
+  const durationSec = o.duration_sec ?? o.durationSec;
+
+  return {
+    id: String(o.id ?? ''),
+    filename: String(o.filename ?? ''),
+    url: String(o.url ?? ''),
+    ...(o.description != null && { description: String(o.description) }),
+    ...(sourceType != null && { sourceType: sourceType as VideoMeta['sourceType'] }),
+    ...(hlsUrl != null && { hlsUrl: String(hlsUrl) }),
+    ...(posterUrl != null && { posterUrl: String(posterUrl) }),
+    ...(thumbnailUrl != null && { thumbnailUrl: String(thumbnailUrl) }),
+    ...(durationSec != null && { durationSec: Number(durationSec) }),
+    ...(variants && { variants }),
+  };
+}
+
 function normalizeFeedItem(raw: Record<string, unknown>): VideoFeedItem {
   const seller = raw.seller as Record<string, unknown>;
   return {
     id: raw.id as string,
-    video: raw.video as VideoFeedItem['video'],
+    video: normalizeVideoMeta(raw.video),
     seller: {
       id: seller.id as string,
       name: seller.name as string,

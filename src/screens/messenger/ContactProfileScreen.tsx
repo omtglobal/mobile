@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -7,17 +7,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import {
-  ArrowLeft,
-  MessageCircle,
-  Phone,
-  Video,
-  Shield,
-  UserMinus,
-} from 'lucide-react-native';
+import { ArrowLeft, MessageCircle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { Text } from '~/components/ui';
+import { useCreateConversationMutation } from '~/lib/hooks/useMessaging';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { MessengerStackParamList } from '~/navigation/MessengerNavigator';
@@ -41,7 +35,22 @@ export function ContactProfileScreen() {
   const route = useRoute<ProfileRoute>();
   const { userId } = route.params;
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const createConversation = useCreateConversationMutation();
+
+  const openChat = useCallback(async () => {
+    try {
+      const res = await createConversation.mutateAsync({
+        participant_user_id: userId,
+        type: 'direct',
+      });
+      const conv = res?.data;
+      if (conv?.id) {
+        navigation.navigate('MessengerChat', { conversationId: conv.id });
+      }
+    } catch {
+      /* react-query */
+    }
+  }, [createConversation, navigation, userId]);
 
   const avatarBg = getAvatarColor(userId);
   const initial = userId.charAt(0).toUpperCase();
@@ -113,9 +122,10 @@ export function ContactProfileScreen() {
           </Text>
         </View>
 
-        {/* Action buttons */}
-        <View style={[styles.actionsRow, { paddingHorizontal: spacing.lg, marginTop: spacing.xl, gap: spacing.sm }]}>
+        {/* Message — only action wired to chat */}
+        <View style={[styles.actionsRow, { paddingHorizontal: spacing.lg, marginTop: spacing.xl }]}>
           <Pressable
+            onPress={() => void openChat()}
             style={[
               styles.actionButton,
               {
@@ -135,52 +145,6 @@ export function ContactProfileScreen() {
               style={{ fontWeight: '500', marginTop: spacing.sm }}
             >
               {t('messenger.message', 'Message')}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.actionButton,
-              {
-                backgroundColor: colors.bgSecondary,
-                borderColor: colors.borderDefault,
-                borderRadius: radius.lg,
-                paddingVertical: spacing.lg,
-              },
-            ]}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: colors.bgTertiary }]}>
-              <Phone size={20} color={colors.textSecondary} />
-            </View>
-            <Text
-              variant="caption"
-              color="primary"
-              style={{ fontWeight: '500', marginTop: spacing.sm }}
-            >
-              {t('messenger.call', 'Call')}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.actionButton,
-              {
-                backgroundColor: colors.bgSecondary,
-                borderColor: colors.borderDefault,
-                borderRadius: radius.lg,
-                paddingVertical: spacing.lg,
-              },
-            ]}
-          >
-            <View style={[styles.actionIconCircle, { backgroundColor: colors.bgTertiary }]}>
-              <Video size={20} color={colors.textSecondary} />
-            </View>
-            <Text
-              variant="caption"
-              color="primary"
-              style={{ fontWeight: '500', marginTop: spacing.sm }}
-            >
-              {t('messenger.video', 'Video')}
             </Text>
           </Pressable>
         </View>
@@ -225,46 +189,6 @@ export function ContactProfileScreen() {
             <Text variant="bodyMd" color="primary" style={{ marginTop: spacing.xs, fontWeight: '500' }}>
               {t('messenger.phone_placeholder', 'Not available')}
             </Text>
-          </View>
-        </View>
-
-        {/* Settings section */}
-        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
-          <View
-            style={[
-              styles.settingsCard,
-              {
-                backgroundColor: colors.bgSecondary,
-                borderRadius: radius.lg,
-                borderColor: colors.borderDefault,
-              },
-            ]}
-          >
-            <Text
-              variant="headingSm"
-              color="primary"
-              style={{ padding: spacing.lg, paddingBottom: spacing.sm }}
-            >
-              {t('messenger.settings_section', 'Settings')}
-            </Text>
-
-            {/* Block */}
-            <Pressable style={[styles.settingsRow, { paddingHorizontal: spacing.lg, paddingVertical: spacing.md }]}>
-              <Shield size={20} color={colors.textSecondary} />
-              <Text variant="bodyMd" color="primary" style={styles.flex}>
-                {t('messenger.block_user', 'Block')}
-              </Text>
-            </Pressable>
-
-            <View style={[styles.divider, { backgroundColor: colors.borderDefault, marginHorizontal: spacing.lg }]} />
-
-            {/* Delete contact */}
-            <Pressable style={[styles.settingsRow, { paddingHorizontal: spacing.lg, paddingVertical: spacing.md }]}>
-              <UserMinus size={20} color={colors.error} />
-              <Text variant="bodyMd" style={{ flex: 1, color: colors.error }}>
-                {t('messenger.delete_contact', 'Delete contact')}
-              </Text>
-            </Pressable>
           </View>
         </View>
       </ScrollView>
@@ -341,17 +265,5 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     borderWidth: StyleSheet.hairlineWidth,
-  },
-  settingsCard: {
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
   },
 });

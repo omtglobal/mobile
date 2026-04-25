@@ -335,7 +335,14 @@ export type AnalyticsEventType =
   | 'SearchPerformed'
   | 'AddToCartClicked'
   | 'CheckoutStarted'
-  | 'PaymentClicked';
+  | 'PaymentClicked'
+  | 'VideoTimeToFirstFrame'
+  | 'VideoCacheHit'
+  | 'VideoCacheMiss'
+  | 'VideoCacheEviction'
+  | 'VideoDownloadFailed'
+  | 'VideoPreloadCancelled'
+  | 'VideoFormatDetected';
 
 export interface TrackEventPayload {
   event_type: AnalyticsEventType;

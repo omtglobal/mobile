@@ -1,35 +1,20 @@
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Smile, Sticker as StickerIcon, X } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { EmojiKeyboard } from 'rn-emoji-keyboard';
 import type { EmojiType } from 'rn-emoji-keyboard';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { Text } from '~/components/ui';
-import { StickerPanel } from './StickerPanel';
-
-export type BottomPanelTab = 'emoji' | 'stickers';
 
 interface ChatBottomPanelProps {
-  activeTab: BottomPanelTab;
-  onTabChange: (tab: BottomPanelTab) => void;
   onClose: () => void;
   onEmojiSelect: (emoji: string) => void;
-  onStickerSelect: (emoji: string) => void;
 }
 
-const TABS: { id: BottomPanelTab; label: string; Icon: typeof Smile }[] = [
-  { id: 'emoji', label: 'Emoji', Icon: Smile },
-  { id: 'stickers', label: 'Stickers', Icon: StickerIcon },
-];
-
-export function ChatBottomPanel({
-  activeTab,
-  onTabChange,
-  onClose,
-  onEmojiSelect,
-  onStickerSelect,
-}: ChatBottomPanelProps) {
-  const { colors, spacing, radius } = useTheme();
+export function ChatBottomPanel({ onClose, onEmojiSelect }: ChatBottomPanelProps) {
+  const { t } = useTranslation();
+  const { colors, spacing } = useTheme();
 
   const handleEmojiSelected = useCallback(
     (emojiObject: EmojiType) => {
@@ -40,109 +25,58 @@ export function ChatBottomPanel({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPrimary, borderTopColor: colors.borderDefault }]}>
-      {/* Tab bar */}
-      <View style={[styles.tabBar, { paddingHorizontal: spacing.md }]}>
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <Pressable
-              key={tab.id}
-              onPress={() => onTabChange(tab.id)}
-              style={[
-                styles.tab,
-                {
-                  borderBottomWidth: isActive ? 2 : 0,
-                  borderBottomColor: colors.brandPrimary,
-                  paddingVertical: spacing.sm,
-                  paddingHorizontal: spacing.md,
-                },
-              ]}
-            >
-              <tab.Icon
-                size={18}
-                color={isActive ? colors.brandPrimary : colors.textTertiary}
-              />
-              <Text
-                variant="caption"
-                style={{
-                  color: isActive ? colors.brandPrimary : colors.textTertiary,
-                  fontWeight: isActive ? '600' : '400',
-                  marginLeft: 4,
-                }}
-              >
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={[styles.header, { paddingHorizontal: spacing.md }]}>
+        <Text variant="caption" style={{ color: colors.textSecondary, fontWeight: '600' }}>
+          {t('messenger.emoji')}
+        </Text>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={onClose} hitSlop={8} style={{ padding: 6 }}>
+        <Pressable onPress={onClose} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button">
           <X size={18} color={colors.textSecondary} />
         </Pressable>
       </View>
 
-      {/* Content */}
-      {activeTab === 'emoji' && (
-        <View style={{ height: 280 }}>
-          <EmojiKeyboard
-            onEmojiSelected={handleEmojiSelected}
-            enableSearchBar
-            enableRecentlyUsed
-            categoryPosition="top"
-            emojiSize={28}
-            theme={{
-              backdrop: 'transparent',
-              knob: colors.borderDefault,
-              container: colors.bgPrimary,
-              header: colors.textSecondary,
-              category: {
-                icon: colors.textTertiary,
-                iconActive: colors.brandPrimary,
-                container: 'transparent',
-                containerActive: colors.brandPrimary + '15',
-              },
-              search: {
-                background: colors.bgSecondary,
-                text: colors.textPrimary,
-                placeholder: colors.textTertiary,
-                icon: colors.textTertiary,
-              },
-              emoji: {
-                selected: colors.brandPrimary + '20',
-              },
-              skinTonesContainer: colors.bgSecondary,
-              customButton: {
-                icon: colors.textTertiary,
-                iconPressed: colors.brandPrimary,
-                background: 'transparent',
-                backgroundPressed: colors.brandPrimary + '15',
-              },
-            }}
-          />
-        </View>
-      )}
-
-      {activeTab === 'stickers' && (
-        <StickerPanelInline onSelect={onStickerSelect} />
-      )}
+      <View style={{ height: 280 }}>
+        <EmojiKeyboard
+          onEmojiSelected={handleEmojiSelected}
+          enableSearchBar={false}
+          enableRecentlyUsed
+          categoryPosition="top"
+          emojiSize={28}
+          theme={{
+            backdrop: 'transparent',
+            knob: colors.borderDefault,
+            container: colors.bgPrimary,
+            header: colors.textSecondary,
+            category: {
+              icon: colors.textTertiary,
+              iconActive: colors.brandPrimary,
+              container: 'transparent',
+              containerActive: colors.brandPrimary + '15',
+            },
+            emoji: {
+              selected: colors.brandPrimary + '20',
+            },
+            skinTonesContainer: colors.bgSecondary,
+            customButton: {
+              icon: colors.textTertiary,
+              iconPressed: colors.brandPrimary,
+              background: 'transparent',
+              backgroundPressed: colors.brandPrimary + '15',
+            },
+          }}
+        />
+      </View>
     </View>
   );
-}
-
-function StickerPanelInline({ onSelect }: { onSelect: (emoji: string) => void }) {
-  return <StickerPanel onClose={() => {}} onSelect={onSelect} hideHeader />;
 }
 
 const styles = StyleSheet.create({
   container: {
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  tabBar: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingVertical: 8,
   },
 });

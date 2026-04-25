@@ -88,21 +88,19 @@ export function MessengerSettingsScreen() {
         style={[
           styles.header,
           {
-            paddingTop: insets.top + spacing.sm,
+            paddingTop: spacing.sm,
             paddingHorizontal: spacing.lg,
-            paddingBottom: spacing.md,
+            paddingBottom: spacing.xs,
             borderBottomColor: colors.borderDefault,
           },
         ]}
       >
-        <View style={{ flex: 1 }}>
-          <Text variant="headingLg" color="primary">
-            {t('messenger.settings', 'Settings')}
-          </Text>
-          <Text variant="bodySm" color="secondary">
-            {t('messenger.settings_subtitle', 'App customization')}
-          </Text>
-        </View>
+        <Text variant="headingMd" color="primary">
+          {t('messenger.settings', 'Settings')}
+        </Text>
+        <Text variant="caption" color="secondary" style={{ marginTop: 2 }}>
+          {t('messenger.settings_subtitle', 'App customization')}
+        </Text>
       </View>
 
       <ScrollView
@@ -112,44 +110,42 @@ export function MessengerSettingsScreen() {
         }}
       >
         {/* ── Theme ────────────────────────────────────────────── */}
-        <View style={{ marginTop: spacing.xl }}>
-          <View style={[styles.sectionHeader, { marginBottom: spacing.md }]}>
-            {isDarkMode ? (
-              <Moon size={18} color={colors.textSecondary} />
-            ) : (
-              <Sun size={18} color={colors.textSecondary} />
-            )}
-            <Text variant="headingSm" color="primary" style={{ marginLeft: spacing.sm }}>
-              {t('messenger.theme', 'Theme')}
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.bgSecondary,
-                borderRadius: radius.lg,
-                borderColor: colors.borderDefault,
-                padding: spacing.lg,
-              },
-            ]}
-          >
-            <View style={styles.settingRow}>
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyMd" color="primary" style={{ fontWeight: '500' }}>
-                  {t('messenger.dark_mode', 'Dark Mode')}
-                </Text>
-                <Text variant="caption" color="secondary" style={{ marginTop: 2 }}>
-                  {t('messenger.dark_mode_hint', 'Reduces eye strain')}
-                </Text>
-              </View>
-              <Switch
-                value={isDarkMode}
-                onValueChange={toggleDarkMode}
-                trackColor={{ false: colors.bgTertiary, true: colors.brandPrimary + '80' }}
-                thumbColor={isDarkMode ? colors.brandPrimary : colors.bgPrimary}
-              />
+        <View style={[styles.sectionHeader, { marginTop: spacing.md, marginBottom: spacing.md }]}>
+          {isDarkMode ? (
+            <Moon size={18} color={colors.textSecondary} />
+          ) : (
+            <Sun size={18} color={colors.textSecondary} />
+          )}
+          <Text variant="headingSm" color="primary" style={{ marginLeft: spacing.sm }}>
+            {t('messenger.theme', 'Theme')}
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.bgSecondary,
+              borderRadius: radius.lg,
+              borderColor: colors.borderDefault,
+              padding: spacing.lg,
+            },
+          ]}
+        >
+          <View style={styles.settingRow}>
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyMd" color="primary" style={{ fontWeight: '500' }}>
+                {t('messenger.dark_mode', 'Dark Mode')}
+              </Text>
+              <Text variant="caption" color="secondary" style={{ marginTop: 2 }}>
+                {t('messenger.dark_mode_hint', 'Reduces eye strain')}
+              </Text>
             </View>
+            <Switch
+              value={isDarkMode}
+              onValueChange={toggleDarkMode}
+              trackColor={{ false: colors.bgTertiary, true: colors.brandPrimary + '80' }}
+              thumbColor={isDarkMode ? colors.brandPrimary : colors.bgPrimary}
+            />
           </View>
         </View>
 

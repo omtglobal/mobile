@@ -12,12 +12,11 @@ import { VideoFeedItem } from '~/components/video/VideoFeedItem';
 import { VideoCommentsModal } from '~/components/video/VideoCommentsModal';
 import { VideoShareSheet } from '~/components/video/VideoShareSheet';
 import { useVideoFeed } from '~/lib/hooks/useVideoFeed';
+import { usePrefetchVideoFeedWindow, useVideoPreloadQueue } from '~/lib/hooks/useVideoPreloadQueue';
 import { videoApi } from '~/lib/api/video';
 import { patchVideoFeedItemInCache } from '~/lib/utils/videoFeedQuery';
 import { useQueryClient } from '@tanstack/react-query';
 import type { VideoFeedItem as VideoFeedItemType } from '~/types/content';
-
-const PRELOAD_WINDOW = 1;
 
 type Props = {
   /** When false (e.g. user on Sales/Messenger tab), feed must not autoplay. */
@@ -40,6 +39,9 @@ export default function VideoFeedScreen({ isTabActive }: Props) {
   const [shareVideoId, setShareVideoId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
+
+  const { getPlayableUri, getPosterUrl } = useVideoPreloadQueue(items, activeIndex, isTabActive);
+  usePrefetchVideoFeedWindow(items, activeIndex, hasMore, isFetchingNextPage, loadMore);
 
   const shareItem = useMemo(
     () => (shareVideoId ? items.find((i) => i.id === shareVideoId) : null),
@@ -85,22 +87,31 @@ export default function VideoFeedScreen({ isTabActive }: Props) {
     }
   }, [refetch]);
 
+  const shouldMountPlayer = useCallback(
+    (index: number) => {
+      if (!isTabActive) return false;
+      const d = index - activeIndex;
+      return d >= -1 && d <= 2;
+    },
+    [activeIndex, isTabActive]
+  );
+
   const renderItem = useCallback(
     ({ item, index }: { item: VideoFeedItemType; index: number }) => {
-      const distance = Math.abs(index - activeIndex);
-      const shouldPreload = distance <= PRELOAD_WINDOW;
       return (
         <VideoFeedItem
           item={item}
           isActive={isTabActive && index === activeIndex}
-          shouldPreload={shouldPreload && isTabActive}
+          shouldPreload={shouldMountPlayer(index)}
+          playableUri={getPlayableUri(item)}
+          posterUrl={getPosterUrl(item)}
           height={pageHeight}
           onOpenComments={setCommentsVideoId}
           onOpenShare={setShareVideoId}
         />
       );
     },
-    [activeIndex, isTabActive, pageHeight]
+    [activeIndex, getPlayableUri, getPosterUrl, isTabActive, pageHeight, shouldMountPlayer]
   );
 
   const keyExtractor = useCallback((i: VideoFeedItemType) => i.id, []);

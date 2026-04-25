@@ -25,6 +25,7 @@
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.omtglobal.ninhaomaniya",
       "adaptiveIcon": {
         "backgroundColor": "#FF6B00",
