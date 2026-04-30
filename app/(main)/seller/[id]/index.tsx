@@ -1,8 +1,9 @@
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { ProductCard } from '~/components/catalog';
-import { Button, Text } from '~/components/ui';
+import { Button, HeaderBackButton, Text } from '~/components/ui';
 import { catalogApi } from '~/lib/api/catalog';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '~/lib/contexts/ThemeContext';
@@ -11,6 +12,7 @@ import { resolveImageUrl } from '~/lib/utils/imageUrl';
 export default function SellerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { t } = useTranslation();
   const { colors, spacing } = useTheme();
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -32,7 +34,9 @@ export default function SellerScreen() {
   if (!seller) {
     return (
       <View style={[styles.container, { backgroundColor: colors.bgSecondary, padding: spacing.lg }]}>
-        <Text variant="bodyMd" color="secondary">Seller not found</Text>
+        <Text variant="bodyMd" color="secondary">
+          {t('seller.not_found')}
+        </Text>
       </View>
     );
   }
@@ -55,20 +59,25 @@ export default function SellerScreen() {
       }
     >
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>←</Text>
-        </Pressable>
-        <Text variant="headingMd">Seller</Text>
+        <HeaderBackButton onPress={() => router.back()} />
+        <Text variant="headingMd">{t('seller.title')}</Text>
       </View>
 
-      <View style={[styles.profileCard, { backgroundColor: colors.bgPrimary }]}>
+      <Pressable
+        onPress={() => router.push(`/seller/${id}/about`)}
+        accessibilityRole="button"
+        accessibilityLabel={t('seller.info_cta')}
+        style={({ pressed }) => [
+          styles.profileCard,
+          {
+            backgroundColor: colors.bgPrimary,
+            opacity: pressed ? 0.92 : 1,
+          },
+        ]}
+      >
         {seller.is_premium_plus && headerUrl ? (
           <View style={[styles.headerBg, { height: 80 }]}>
-            <Image
-              source={{ uri: headerUrl }}
-              style={styles.headerBgImage}
-              contentFit="cover"
-            />
+            <Image source={{ uri: headerUrl }} style={styles.headerBgImage} contentFit="cover" />
           </View>
         ) : null}
         <View style={[styles.profileRow, { padding: spacing.lg }]}>
@@ -93,12 +102,18 @@ export default function SellerScreen() {
             )}
           </View>
         </View>
+      </Pressable>
+
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs }}>
+        <Button variant="secondary" onPress={() => router.push(`/seller/${id}/about`)}>
+          {t('seller.info_cta')}
+        </Button>
       </View>
 
       {seller.profile_description && (
         <View style={[styles.section, { padding: spacing.lg, backgroundColor: colors.bgPrimary }]}>
           <Text variant="headingSm" style={styles.sectionTitle}>
-            About
+            {t('seller.about_section')}
           </Text>
           <Text variant="bodyMd" color="secondary">
             {seller.profile_description}
@@ -109,7 +124,7 @@ export default function SellerScreen() {
       {categories.length > 0 && (
         <View style={[styles.section, { padding: spacing.lg, backgroundColor: colors.bgPrimary }]}>
           <Text variant="headingSm" style={styles.sectionTitle}>
-            Categories
+            {t('seller.categories')}
           </Text>
           <View style={styles.categoryChips}>
             {categories.map((c) => (
@@ -128,7 +143,7 @@ export default function SellerScreen() {
 
       <View style={[styles.section, { padding: spacing.lg }]}>
         <Text variant="headingSm" style={styles.sectionTitle}>
-          Seller Products
+          {t('seller.products')}
         </Text>
         <View style={styles.productGrid}>
           {products.map((p) => (
@@ -144,7 +159,7 @@ export default function SellerScreen() {
           variant="secondary"
           onPress={() => router.push({ pathname: '/support/new', params: { companyId: id } })}
         >
-          Contact Seller
+          {t('seller.contact')}
         </Button>
       </View>
     </ScrollView>
@@ -164,9 +179,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
     borderBottomWidth: 1,
-  },
-  backBtn: {
-    padding: 4,
   },
   profileCard: {
     marginBottom: 8,

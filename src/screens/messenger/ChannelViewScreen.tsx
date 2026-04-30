@@ -9,7 +9,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
-  ArrowLeft,
   Share2,
   MoreVertical,
   Users,
@@ -21,7 +20,7 @@ import {
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import {
   useChannelQuery,
   useChannelPostsQuery,
@@ -218,9 +217,7 @@ export function ChannelViewScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.textPrimary} />
-        </Pressable>
+        <HeaderBackButton onPress={() => navigation.goBack()} style={styles.backButton} />
         <View style={styles.headerCenter}>
           <Radio size={16} color={colors.brandPrimary} />
           <Text variant="headingSm" color="primary" numberOfLines={1} style={{ marginLeft: spacing.xs }}>

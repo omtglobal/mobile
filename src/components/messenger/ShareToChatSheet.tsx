@@ -86,7 +86,7 @@ export function ShareToChatSheet({
             product_image_url: productImageUrl ?? undefined,
           },
         });
-        toast.show(t('messenger.product_shared'), 'success');
+        toast.show(t('messenger.share_sent'), 'success');
         onClose();
         goToMessengerAndChat(conversation.id);
       } catch {

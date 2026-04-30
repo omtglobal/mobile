@@ -36,6 +36,16 @@ export default function MainLayout() {
     [router]
   );
 
+  const goToSalesAndSeller = useCallback(
+    (sellerId: string) => {
+      pagerRef.current?.setPage(PAGE_SALES);
+      requestAnimationFrame(() => {
+        router.push(`/(main)/seller/${sellerId}`);
+      });
+    },
+    [router]
+  );
+
   const goToMessengerAndChat = useCallback((conversationId: string) => {
     pagerRef.current?.setPage(PAGE_MESSENGER);
     const tryNav = (attempt: number) => {
@@ -61,7 +71,7 @@ export default function MainLayout() {
   const showTabBar = (page === PAGE_VIDEO) || (page === PAGE_SALES && salesTabAtRoot) || (page === PAGE_MESSENGER && messengerAtRoot);
 
   return (
-    <MainPagerProvider value={{ goToSalesAndProduct, goToMessengerAndChat }}>
+    <MainPagerProvider value={{ goToSalesAndProduct, goToSalesAndSeller, goToMessengerAndChat }}>
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgPrimary }} edges={['top']}>
         <View style={{ flex: 1, position: 'relative' }}>
           {showTabBar ? (

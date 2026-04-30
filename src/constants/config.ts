@@ -95,3 +95,23 @@ function getWsBaseUrl(): string {
 }
 
 export const WS_BASE_URL = getWsBaseUrl();
+
+/**
+ * Public web storefront base URL (product pages, universal links).
+ * Override with EXPO_PUBLIC_WEB_STORE_URL (no trailing slash).
+ */
+function getWebStoreBaseUrl(): string {
+  const fromEnv =
+    typeof process.env.EXPO_PUBLIC_WEB_STORE_URL === 'string'
+      ? process.env.EXPO_PUBLIC_WEB_STORE_URL.trim().replace(/\/$/, '')
+      : '';
+  if (fromEnv) return fromEnv;
+  return 'https://ninhao.shop';
+}
+
+export const WEB_STORE_BASE_URL = getWebStoreBaseUrl();
+
+/** Canonical HTTPS URL for a product on the web app (e.g. Next.js storefront). */
+export function productWebUrl(productId: string): string {
+  return `${WEB_STORE_BASE_URL}/product/${encodeURIComponent(productId)}`;
+}

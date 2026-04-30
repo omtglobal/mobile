@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { StarRating } from '~/components/catalog';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import { useProduct } from '~/lib/hooks/useProducts';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 
@@ -17,9 +17,7 @@ export default function ReviewsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>←</Text>
-        </Pressable>
+        <HeaderBackButton onPress={() => router.back()} />
         <Text variant="headingMd">
           Reviews {product ? `— ${product.title}` : ''}
         </Text>
@@ -57,9 +55,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
     borderBottomWidth: 1,
-  },
-  backBtn: {
-    padding: 4,
   },
   list: {
     paddingBottom: 32,

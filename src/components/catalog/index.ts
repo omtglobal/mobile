@@ -8,4 +8,7 @@ export { StarRating } from './StarRating';
 export { ProductGallery } from './ProductGallery';
 export { SellerCard } from './SellerCard';
 export { ReviewPreview } from './ReviewPreview';
+export { ProductReviewForm } from './ProductReviewForm';
+export { ProductDetailTabBar, type ProductDetailTabKey } from './ProductDetailTabBar';
 export { StickyAddToCart } from './StickyAddToCart';
+export { ProductShareSheet } from './ProductShareSheet';

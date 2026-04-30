@@ -1,9 +1,9 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { ExternalLink } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
+import { useMainPager } from '~/lib/contexts/MainPagerContext';
 import { Text } from '~/components/ui';
 import type { MessageMetadata } from '~/types/messaging';
 
@@ -14,11 +14,11 @@ interface ProductMessageCardProps {
 export function ProductMessageCard({ metadata }: ProductMessageCardProps) {
   const { t } = useTranslation();
   const { colors, spacing, radius } = useTheme();
-  const router = useRouter();
+  const { goToSalesAndProduct } = useMainPager();
 
   const handlePress = () => {
     if (metadata.product_id) {
-      router.push(`/product/${metadata.product_id}`);
+      goToSalesAndProduct(metadata.product_id);
     }
   };
 
@@ -67,7 +67,7 @@ export function ProductMessageCard({ metadata }: ProductMessageCardProps) {
         >
           <ExternalLink size={14} color={colors.brandPrimary} />
           <Text variant="caption" style={{ color: colors.brandPrimary, fontWeight: '600', marginLeft: 4 }}>
-            {t('messenger.view_product')}
+            {t('messenger.product_card.view')}
           </Text>
         </Pressable>
       </View>

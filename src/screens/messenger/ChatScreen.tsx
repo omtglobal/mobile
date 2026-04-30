@@ -10,10 +10,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, MoreVertical } from 'lucide-react-native';
+import { MoreVertical } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import {
   ChatBubble,
   ChatWallpaper,
@@ -201,10 +201,16 @@ export function ChatScreen() {
   }, []);
 
   const handleContactProfile = useCallback(() => {
+    Keyboard.dismiss();
     if (otherParticipantId) {
       navigation.navigate('MessengerContactProfile' as any, { userId: otherParticipantId });
     }
   }, [navigation, otherParticipantId]);
+
+  const handleGoBack = useCallback(() => {
+    Keyboard.dismiss();
+    navigation.goBack();
+  }, [navigation]);
 
   const handleInputFocus = useCallback(() => {
     // iOS: closing the emoji panel in the same turn as TextInput focus can steal first responder.
@@ -266,9 +272,7 @@ export function ChatScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.textPrimary} />
-        </Pressable>
+        <HeaderBackButton onPress={handleGoBack} style={styles.backButton} />
 
         <Pressable onPress={handleContactProfile} style={styles.headerInfo}>
           <View style={styles.headerAvatarWrap}>
@@ -302,6 +306,7 @@ export function ChatScreen() {
           <Pressable
             hitSlop={8}
             style={[styles.headerActionBtn, { borderRadius: radius.lg }]}
+            onPress={Keyboard.dismiss}
           >
             <MoreVertical size={20} color={colors.textSecondary} />
           </Pressable>
@@ -343,8 +348,10 @@ export function ChatScreen() {
                   data={listItems}
                   renderItem={renderItem}
                   keyExtractor={keyExtractor}
-                  keyboardShouldPersistTaps="always"
-                  keyboardDismissMode="interactive"
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode={
+                    Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+                  }
                   contentContainerStyle={{ paddingVertical: spacing.sm }}
                   ListFooterComponent={<TypingIndicator names={typingNames} />}
                 />

@@ -7,10 +7,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, MessageCircle } from 'lucide-react-native';
+import { MessageCircle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import { useCreateConversationMutation } from '~/lib/hooks/useMessaging';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -71,9 +71,7 @@ export function ContactProfileScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.textPrimary} />
-        </Pressable>
+        <HeaderBackButton onPress={() => navigation.goBack()} style={styles.backButton} />
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
           <Text variant="headingSm" color="primary">
             {t('messenger.contact', 'Contact')}

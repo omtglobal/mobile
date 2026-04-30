@@ -107,6 +107,10 @@ export interface OrderItem {
   currency: string;
   quantity: number;
   line_total: string;
+  /** When API includes product media (OrderItemResource / snapshots). */
+  primary_image?: ProductImage | null;
+  /** Flat preview URL from API (optional). */
+  image_url?: string | null;
 }
 
 export interface Order {

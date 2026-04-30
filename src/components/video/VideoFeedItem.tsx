@@ -1,6 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useEvent } from 'expo';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -10,6 +9,7 @@ import { FloatingComments } from './FloatingComments';
 import { Text } from '~/components/ui/Text';
 import { videoApi } from '~/lib/api/video';
 import { analytics } from '~/lib/analytics/analyticsService';
+import { useMainPager } from '~/lib/contexts/MainPagerContext';
 import type { VideoFeedItem as VideoFeedItemType } from '~/types/content';
 
 type Props = {
@@ -190,9 +190,9 @@ type OverlaysProps = {
 };
 
 function Overlays({ item, isActive, showProduct, sellerBottom, onOpenComments, onOpenShare }: OverlaysProps) {
-  const router = useRouter();
+  const { goToSalesAndSeller } = useMainPager();
   const commentsBottom = 32 + 48;
-  const goToSeller = () => router.push(`/(main)/seller/${item.seller.id}`);
+  const goToSeller = () => goToSalesAndSeller(item.seller.id);
 
   return (
     <>

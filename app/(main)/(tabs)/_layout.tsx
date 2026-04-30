@@ -1,15 +1,16 @@
 import { Tabs } from 'expo-router';
-import { Home, LayoutGrid, ShoppingCart, Package, User } from 'lucide-react-native';
+import { Home, LayoutGrid, Package, User } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { useCartStore } from '~/lib/stores/cart';
+import { CartIconWithBadge } from '~/components/cart';
+import { cartTotalQuantitySelector, useCartStore } from '~/lib/stores/cart';
 
 export default function TabLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const cartCount = useCartStore((s) => s.totalItems());
+  const cartCount = useCartStore(cartTotalQuantitySelector);
 
   return (
     <Tabs
@@ -42,8 +43,9 @@ export default function TabLayout() {
         name="cart"
         options={{
           title: t('tabs.cart'),
-          tabBarIcon: ({ color, size }) => <ShoppingCart color={color} size={size} />,
-          tabBarBadge: cartCount > 0 ? cartCount : undefined,
+          tabBarIcon: ({ color, size }) => (
+            <CartIconWithBadge color={color} size={size} count={cartCount} />
+          ),
         }}
       />
       <Tabs.Screen

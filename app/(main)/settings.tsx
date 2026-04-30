@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { API_BASE_URL, API_FULL_URL } from '~/constants/config';
 import { healthCheck } from '~/lib/api/client';
@@ -113,9 +113,7 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>←</Text>
-        </Pressable>
+        <HeaderBackButton onPress={() => router.back()} />
         <Text variant="headingMd" style={{ color: colors.textPrimary }}>{t('settings.title')}</Text>
       </View>
     <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { padding: spacing.lg }]}>
@@ -329,7 +327,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8, borderBottomWidth: 1 },
-  backBtn: { padding: 4 },
   scroll: { flex: 1 },
   content: { paddingBottom: 32 },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 8 },

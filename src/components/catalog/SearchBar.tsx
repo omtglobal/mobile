@@ -1,36 +1,62 @@
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Search } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Search, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { Text } from '~/components/ui';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 
-/** Static search bar — tap navigates to /search */
-export function SearchBar() {
-  const router = useRouter();
+type Props = {
+  value: string;
+  onChangeText: (text: string) => void;
+  /** Called when user presses "search" on the keyboard (optional: save history, etc.). */
+  onSubmitEditing?: () => void;
+  placeholder?: string;
+};
+
+/** Inline search field for catalog home (does not navigate away). */
+export function SearchBar({ value, onChangeText, onSubmitEditing, placeholder }: Props) {
   const { t } = useTranslation();
-  const { colors, radius, spacing } = useTheme();
+  const { colors, radius, typography } = useTheme();
 
   return (
-    <Pressable
+    <View
       testID="search-bar"
-      onPress={() => router.push('/search')}
-      style={({ pressed }) => [
+      style={[
         styles.container,
         {
           backgroundColor: colors.bgSecondary,
           borderRadius: radius.lg,
           borderWidth: 1,
           borderColor: colors.borderDefault,
-          opacity: pressed ? 0.8 : 1,
         },
       ]}
     >
       <Search color={colors.textTertiary} size={20} />
-      <Text variant="bodyMd" color="secondary" style={styles.placeholder}>
-        {t('home.search_placeholder')}
-      </Text>
-    </Pressable>
+      <TextInput
+        testID="search-input"
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder ?? t('home.search_placeholder')}
+        placeholderTextColor={colors.textTertiary}
+        onSubmitEditing={onSubmitEditing}
+        returnKeyType="search"
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={[
+          styles.input,
+          typography.bodyMd,
+          { color: colors.textPrimary },
+        ]}
+      />
+      {value.length > 0 ? (
+        <Pressable
+          onPress={() => onChangeText('')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.clear')}
+        >
+          <X color={colors.textTertiary} size={20} />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -39,10 +65,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     gap: 12,
+    minHeight: 48,
   },
-  placeholder: {
+  input: {
     flex: 1,
+    paddingVertical: 0,
+    margin: 0,
   },
 });

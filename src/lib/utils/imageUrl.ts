@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '~/constants/config';
+import type { OrderItem } from '~/types/models';
 
 /**
  * Resolves image URLs for display in the mobile app.
@@ -8,6 +9,26 @@ import { API_BASE_URL } from '~/constants/config';
  *   preserving the original port so MinIO (9000) and API (8000) URLs both work.
  * - minio:9000 (Docker-internal) URLs are rewritten to the API host on port 9000.
  */
+/**
+ * Resolved URL for order line preview (thumbnail preferred).
+ * If the order API omits media, pass `hydratedByProductId` from useProductThumbnailsByIds.
+ */
+export function resolveOrderItemImageUrl(
+  item: OrderItem,
+  hydratedByProductId?: Record<string, string | null | undefined>,
+): string | null {
+  const raw =
+    item.primary_image?.thumbnail_url ??
+    item.primary_image?.url ??
+    item.image_url ??
+    null;
+  const fromApi = resolveImageUrl(raw);
+  if (fromApi) return fromApi;
+  const hydrated = hydratedByProductId?.[item.product_id];
+  if (typeof hydrated === 'string' && hydrated.length > 0) return hydrated;
+  return null;
+}
+
 export function resolveImageUrl(url: string | null | undefined): string | null {
   if (!url || typeof url !== 'string') return null;
   const trimmed = url.trim();

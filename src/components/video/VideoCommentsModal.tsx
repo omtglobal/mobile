@@ -89,53 +89,63 @@ export function VideoCommentsModal({ videoId, onClose, onCommentCountChange }: P
     []
   );
 
+  const goToLogin = useCallback(() => {
+    onClose();
+    router.push('/(auth)/login');
+  }, [onClose, router]);
+
   return (
     <Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={{ flex: 1, backgroundColor: '#111' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingTop: insets.top + 8,
-            paddingHorizontal: 16,
-            paddingBottom: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: 'rgba(255,255,255,0.1)',
-          }}
-        >
-          <Text variant="headingSm" style={{ color: '#FFFFFF' }}>
-            Comments
-          </Text>
-          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
-            <X size={24} color="#FFFFFF" />
-          </Pressable>
-        </View>
-
-        {isLoading && comments.length === 0 ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator color="#fff" />
+        <View style={{ flex: 1 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: insets.top + 8,
+              paddingHorizontal: 16,
+              paddingBottom: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: 'rgba(255,255,255,0.1)',
+            }}
+          >
+            <Text variant="headingSm" style={{ color: '#FFFFFF' }}>
+              Comments
+            </Text>
+            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+              <X size={24} color="#FFFFFF" />
+            </Pressable>
           </View>
-        ) : (
-          <FlatList
-            data={comments}
-            keyExtractor={(c) => c.id}
-            renderItem={renderItem}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => refetch()}
-            ListEmptyComponent={
-              <Text variant="bodyMd" style={{ color: 'rgba(255,255,255,0.6)', marginTop: 24 }}>
-                No comments yet.
-              </Text>
-            }
-          />
-        )}
 
-        <View
+          {isLoading && comments.length === 0 ? (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          ) : (
+            <FlatList
+              style={{ flex: 1 }}
+              data={comments}
+              keyExtractor={(c) => c.id}
+              renderItem={renderItem}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16, flexGrow: 1 }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              refreshing={isFetching && !isLoading}
+              onRefresh={() => refetch()}
+              ListEmptyComponent={
+                <Text variant="bodyMd" style={{ color: 'rgba(255,255,255,0.6)', marginTop: 24 }}>
+                  No comments yet.
+                </Text>
+              }
+            />
+          )}
+
+          <View
             style={{
               flexDirection: 'row',
               alignItems: 'flex-end',
@@ -147,38 +157,55 @@ export function VideoCommentsModal({ videoId, onClose, onCommentCountChange }: P
               borderTopColor: 'rgba(255,255,255,0.1)',
             }}
           >
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              placeholder={isAuthenticated ? 'Add a comment...' : 'Sign in to comment...'}
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              multiline
-              maxLength={2000}
-              onFocus={() => {
-                if (!isAuthenticated) {
-                  onClose();
-                  router.push('/(auth)/login');
-                }
-              }}
-              style={{
-                flex: 1,
-                minHeight: 40,
-                maxHeight: 120,
-                color: '#FFFFFF',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                borderRadius: 12,
-                paddingHorizontal: 14,
-                paddingVertical: 10,
-              }}
-            />
+            {isAuthenticated ? (
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="Add a comment..."
+                placeholderTextColor="rgba(255,255,255,0.4)"
+                multiline
+                maxLength={2000}
+                showSoftInputOnFocus
+                blurOnSubmit={false}
+                style={{
+                  flex: 1,
+                  minHeight: 40,
+                  maxHeight: 120,
+                  color: '#FFFFFF',
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                }}
+              />
+            ) : (
+              <Pressable
+                onPress={goToLogin}
+                style={{
+                  flex: 1,
+                  minHeight: 40,
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  borderRadius: 12,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Sign in to comment"
+              >
+                <Text variant="bodyMd" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  Sign in to comment...
+                </Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={handleSubmit}
-              disabled={postMutation.isPending || !draft.trim()}
+              disabled={postMutation.isPending || !draft.trim() || !isAuthenticated}
               style={{
                 paddingHorizontal: 16,
                 paddingVertical: 10,
                 borderRadius: 12,
-                backgroundColor: draft.trim() ? '#FF3B5C' : 'rgba(255,255,255,0.2)',
+                backgroundColor: draft.trim() && isAuthenticated ? '#FF3B5C' : 'rgba(255,255,255,0.2)',
               }}
             >
               {postMutation.isPending ? (
@@ -190,6 +217,7 @@ export function VideoCommentsModal({ videoId, onClose, onCommentCountChange }: P
               )}
             </Pressable>
           </View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );

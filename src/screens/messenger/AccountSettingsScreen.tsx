@@ -8,10 +8,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Camera, User, AtSign, FileText, Check } from 'lucide-react-native';
+import { Camera, User, AtSign, FileText, Check } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import { useAuth } from '~/lib/hooks/useAuth';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MessengerStackParamList } from '~/navigation/MessengerNavigator';
@@ -70,9 +70,7 @@ export function AccountSettingsScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <ArrowLeft size={24} color={colors.textPrimary} />
-        </Pressable>
+        <HeaderBackButton onPress={() => navigation.goBack()} />
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
           <Text variant="headingLg" color="primary">
             {t('messenger.account_settings', 'Account Settings')}

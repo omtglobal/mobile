@@ -20,6 +20,10 @@ interface CartState {
   selectedTotalPrice: () => number;
 }
 
+/** Zustand selector: total units (sum of line quantities). */
+export const cartTotalQuantitySelector = (s: CartState) =>
+  s.items.reduce((n, i) => n + i.quantity, 0);
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { AxiosError } from 'axios';
 import { AlertTriangle } from 'lucide-react-native';
-import { Button, Input, Text } from '~/components/ui';
+import { Button, HeaderBackButton, Input, Text } from '~/components/ui';
 import { useToast } from '~/components/ui/Toast';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { useAuth } from '~/lib/hooks/useAuth';
@@ -101,16 +101,7 @@ export default function DeleteAccountScreen() {
           { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault },
         ]}
       >
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-        >
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>
-            ←
-          </Text>
-        </Pressable>
+        <HeaderBackButton onPress={() => router.back()} />
         <Text variant="headingMd" style={{ color: colors.textPrimary }}>
           {t('delete_account.title')}
         </Text>
@@ -258,7 +249,6 @@ const styles = StyleSheet.create({
     gap: 8,
     borderBottomWidth: 1,
   },
-  backBtn: { padding: 4 },
   scroll: { flex: 1 },
   content: { paddingBottom: 48 },
   warningBanner: {

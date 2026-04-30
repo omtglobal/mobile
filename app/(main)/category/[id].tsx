@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, SlidersHorizontal } from 'lucide-react-native';
 import { ProductGrid, ProductCard } from '~/components/catalog';
-import { BottomSheet, Button, Text } from '~/components/ui';
+import { BottomSheet, Button, HeaderBackButton, Text } from '~/components/ui';
 import { useCategory } from '~/lib/hooks/useCategories';
 import { useCategoryProducts } from '~/lib/hooks/useProducts';
 import { useTheme } from '~/lib/contexts/ThemeContext';
@@ -66,9 +66,7 @@ export default function CategoryProductsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>←</Text>
-        </Pressable>
+        <HeaderBackButton onPress={() => router.back()} />
         <Text variant="headingSm" numberOfLines={1} style={styles.title}>
           {category?.name ?? 'Category'}
         </Text>
@@ -167,9 +165,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
     borderBottomWidth: 1,
-  },
-  backBtn: {
-    padding: 4,
   },
   title: {
     flex: 1,

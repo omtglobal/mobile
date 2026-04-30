@@ -2,9 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Input } from '~/components/ui';
+import { HeaderBackButton, Input, Text } from '~/components/ui';
 import { ProductGrid, ProductCard } from '~/components/catalog';
-import { Text } from '~/components/ui';
 import { useSearchProducts } from '~/lib/hooks/useProducts';
 import { analytics } from '~/lib/analytics/analyticsService';
 import {
@@ -93,9 +92,7 @@ export default function SearchScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>←</Text>
-        </Pressable>
+        <HeaderBackButton onPress={() => router.back()} />
         <Input
           testID="search-input"
           placeholder={t('home.search_placeholder')}
@@ -196,9 +193,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
     borderBottomWidth: 1,
-  },
-  backBtn: {
-    padding: 4,
   },
   input: {
     flex: 1,

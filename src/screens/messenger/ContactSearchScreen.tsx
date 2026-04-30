@@ -9,10 +9,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import { ContactRow } from '~/components/messenger';
 import {
   useContactSearchQuery,
@@ -138,9 +137,7 @@ export function ContactSearchScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton}>
-          <ChevronLeft size={28} color={colors.textPrimary} />
-        </Pressable>
+        <HeaderBackButton onPress={() => navigation.goBack()} style={styles.backButton} />
         <TextInput
           value={query}
           onChangeText={setQuery}

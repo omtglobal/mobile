@@ -8,10 +8,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Camera } from 'lucide-react-native';
+import { Camera } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import { useCreateChannelMutation } from '~/lib/hooks/useMessaging';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MessengerStackParamList } from '~/navigation/MessengerNavigator';
@@ -82,9 +82,7 @@ export function CreateChannelScreen() {
           },
         ]}
       >
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton}>
-          <ArrowLeft size={24} color={colors.textPrimary} />
-        </Pressable>
+        <HeaderBackButton onPress={() => navigation.goBack()} style={styles.backButton} />
         <Text variant="headingSm" color="primary" style={styles.flex}>
           {t('messenger.new_channel', 'New Channel')}
         </Text>

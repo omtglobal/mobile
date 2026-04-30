@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { ChevronRight, MapPin, Package } from 'lucide-react-native';
-import { Button, Input, Text } from '~/components/ui';
+import { Button, HeaderBackButton, Input, Text } from '~/components/ui';
 import { BottomSheet } from '~/components/ui/BottomSheet';
 import { useToast } from '~/components/ui/Toast';
 import { useAuth } from '~/lib/hooks/useAuth';
@@ -93,9 +93,7 @@ export default function CheckoutScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>←</Text>
-        </Pressable>
+        <HeaderBackButton onPress={() => router.back()} />
         <Text variant="headingMd">{t('checkout.title')}</Text>
       </View>
 
@@ -236,9 +234,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
     borderBottomWidth: 1,
-  },
-  backBtn: {
-    padding: 4,
   },
   scroll: {
     flex: 1,

@@ -1,10 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   SectionList,
   StyleSheet,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -321,7 +323,7 @@ export function ContactsScreen() {
           },
         ]}
       >
-        <View style={styles.headerTop}>
+        <Pressable onPress={Keyboard.dismiss} style={styles.headerTop}>
           <Text variant="headingLg" color="primary" style={{ flex: 1 }}>
             {t('messenger.contacts')}
           </Text>
@@ -345,10 +347,11 @@ export function ContactsScreen() {
               <Radio size={20} color={colors.textSecondary} />
             </Pressable>
           </View>
-        </View>
+        </Pressable>
 
-        {/* Search bar */}
-        <View
+        {/* Search bar — tap outside the field (e.g. icon strip) dismisses keyboard */}
+        <Pressable
+          onPress={Keyboard.dismiss}
           style={[
             styles.searchContainer,
             {
@@ -376,11 +379,17 @@ export function ContactsScreen() {
             ]}
           />
           {searchText.length > 0 && (
-            <Pressable onPress={() => setSearchText('')} style={{ paddingRight: spacing.md }}>
+            <Pressable
+              onPress={() => {
+                setSearchText('');
+                Keyboard.dismiss();
+              }}
+              style={{ paddingRight: spacing.md }}
+            >
               <X size={18} color={colors.textTertiary} />
             </Pressable>
           )}
-        </View>
+        </Pressable>
         {searchText.trim().length >= 2 &&
         searchGlobalFetching &&
         !requestContact.isPending &&
@@ -410,28 +419,33 @@ export function ContactsScreen() {
       {isLoading ? (
         <>
           {ListHeader}
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.brandPrimary} />
-          </View>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.centered}>
+              <ActivityIndicator color={colors.brandPrimary} />
+            </View>
+          </TouchableWithoutFeedback>
         </>
       ) : isError ? (
         <>
           {ListHeader}
-          <View style={styles.centered}>
-            <Text variant="bodyMd" color="secondary" style={{ marginBottom: spacing.md }}>
-              {t('messenger.error_loading')}
-            </Text>
-            <Pressable onPress={() => refetch()}>
-              <Text variant="bodyMd" color="brand">
-                {t('messenger.retry')}
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.centered}>
+              <Text variant="bodyMd" color="secondary" style={{ marginBottom: spacing.md }}>
+                {t('messenger.error_loading')}
               </Text>
-            </Pressable>
-          </View>
+              <Pressable onPress={() => refetch()}>
+                <Text variant="bodyMd" color="brand">
+                  {t('messenger.retry')}
+                </Text>
+              </Pressable>
+            </View>
+          </TouchableWithoutFeedback>
         </>
       ) : sections.length === 0 ? (
         <>
           {ListHeader}
-          <View style={styles.centered}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <View style={styles.centered}>
             {searchText.trim() ? (
               searchText.trim().length >= 2 &&
               searchGlobalFetching &&
@@ -458,7 +472,8 @@ export function ContactsScreen() {
                 {t('messenger.no_contacts')}
               </Text>
             )}
-          </View>
+            </View>
+          </TouchableWithoutFeedback>
         </>
       ) : (
         <SectionList
@@ -468,7 +483,10 @@ export function ContactsScreen() {
           keyExtractor={keyExtractor}
           ListHeaderComponent={ListHeader}
           stickySectionHeadersEnabled
-          contentContainerStyle={{ paddingBottom: spacing.lg + 80 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onScrollBeginDrag={Keyboard.dismiss}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: spacing.lg + 80 }}
         />
       )}
 

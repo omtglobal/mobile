@@ -17,6 +17,7 @@ export const queryKeys = {
   },
   reviews: {
     byProduct: (productId: string) => ['reviews', productId] as const,
+    productPages: (productId: string) => ['reviews', productId, 'pages'] as const,
   },
   orders: {
     all: ['orders'] as const,

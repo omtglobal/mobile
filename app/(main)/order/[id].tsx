@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Image } from 'expo-image';
 import { MapPin, Package, CreditCard } from 'lucide-react-native';
-import { Button, Text } from '~/components/ui';
+import { resolveOrderItemImageUrl } from '~/lib/utils/imageUrl';
+import { Button, HeaderBackButton, Text } from '~/components/ui';
 import { BottomSheet } from '~/components/ui/BottomSheet';
 import { useToast } from '~/components/ui/Toast';
 import { useOrder, usePayOrder, useConfirmDelivery } from '~/lib/hooks/useOrders';
+import { useProductThumbnailsByIds } from '~/lib/hooks/useProductThumbnailsByIds';
 import { formatPrice, formatDate } from '~/lib/utils/format';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import type { Order } from '~/types/models';
-
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -26,6 +26,13 @@ export default function OrderDetailScreen() {
   const confirmDelivery = useConfirmDelivery();
 
   const order = data?.data;
+
+  const orderThumbnailIds = useMemo(() => {
+    if (!order?.items.length) return [];
+    return Array.from(new Set(order.items.map((i) => i.product_id)));
+  }, [order]);
+
+  const orderHydrateMap = useProductThumbnailsByIds(orderThumbnailIds);
 
   const handlePay = async () => {
     if (!id) return;
@@ -66,9 +73,7 @@ export default function OrderDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text variant="bodyMd" style={{ color: colors.brandPrimary }}>←</Text>
-        </Pressable>
+        <HeaderBackButton onPress={() => router.back()} />
         <Text variant="headingMd">{t('orders.order_id', { id: order.id.slice(0, 8) })}</Text>
       </View>
 
@@ -89,14 +94,20 @@ export default function OrderDetailScreen() {
             <Package color={colors.brandPrimary} size={20} />
             <Text variant="headingSm">{t('orders.products')}</Text>
           </View>
-          {order.items.map((item) => (
+          {order.items.map((item) => {
+            const imageUri = resolveOrderItemImageUrl(item, orderHydrateMap);
+            return (
             <Pressable
               key={item.id}
               onPress={() => router.push(`/product/${item.product_id}`)}
               style={({ pressed }) => [styles.productRow, { borderBottomColor: colors.borderDefault, opacity: pressed ? 0.9 : 1 }]}
             >
               <View style={[styles.productImage, { backgroundColor: colors.bgSecondary }]}>
-                <Text variant="caption" color="secondary">•</Text>
+                {imageUri ? (
+                  <Image source={{ uri: imageUri }} style={styles.productImageInner} contentFit="cover" />
+                ) : (
+                  <Package size={22} color={colors.textTertiary} />
+                )}
               </View>
               <View style={styles.productInfo}>
                 <Text variant="bodyMd" numberOfLines={2}>{item.title}</Text>
@@ -105,7 +116,8 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
             </Pressable>
-          ))}
+            );
+          })}
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.bgPrimary }]}>
@@ -217,9 +229,6 @@ const styles = StyleSheet.create({
     gap: 8,
     borderBottomWidth: 1,
   },
-  backBtn: {
-    padding: 4,
-  },
   scroll: {
     flex: 1,
   },
@@ -261,6 +270,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  productImageInner: {
+    width: '100%',
+    height: '100%',
   },
   productInfo: {
     flex: 1,

@@ -1,13 +1,18 @@
+import { useMemo } from 'react';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { FlashList } from '@shopify/flash-list';
+import { Package } from 'lucide-react-native';
 import { Text } from '~/components/ui';
 import { Badge } from '~/components/ui/Badge';
 import { AuthPrompt } from '~/components/layout/AuthPrompt';
 import { useAuth } from '~/lib/hooks/useAuth';
 import { useOrders } from '~/lib/hooks/useOrders';
+import { useProductThumbnailsByIds } from '~/lib/hooks/useProductThumbnailsByIds';
 import { formatPrice, formatDate } from '~/lib/utils/format';
+import { resolveOrderItemImageUrl } from '~/lib/utils/imageUrl';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import type { Order } from '~/types/models';
 
@@ -21,7 +26,15 @@ const STATUS_COLORS: Record<string, 'status' | 'choice' | 'best_sale' | 'brand_p
   refunded: 'best_sale',
 };
 
-function OrderCard({ order, onPress }: { order: Order; onPress: () => void }) {
+function OrderCard({
+  order,
+  onPress,
+  hydrateMap,
+}: {
+  order: Order;
+  onPress: () => void;
+  hydrateMap?: Record<string, string | null>;
+}) {
   const { t } = useTranslation();
   const { colors, radius, spacing } = useTheme();
   const previewItems = order.items.slice(0, 3);
@@ -40,11 +53,21 @@ function OrderCard({ order, onPress }: { order: Order; onPress: () => void }) {
         <Text variant="bodySm" color="secondary">{formatDate(order.created_at)}</Text>
       </View>
       <View style={styles.previewRow}>
-        {previewItems.map((item, i) => (
-          <View key={item.id} style={[styles.previewImg, { backgroundColor: colors.bgSecondary, borderRadius: radius.sm }]}>
-            <Text variant="caption" color="secondary">•</Text>
-          </View>
-        ))}
+        {previewItems.map((item) => {
+          const uri = resolveOrderItemImageUrl(item, hydrateMap);
+          return (
+            <View
+              key={item.id}
+              style={[styles.previewImg, { backgroundColor: colors.bgSecondary, borderRadius: radius.sm }]}
+            >
+              {uri ? (
+                <Image source={{ uri }} style={styles.previewImgInner} contentFit="cover" />
+              ) : (
+                <Package size={22} color={colors.textTertiary} />
+              )}
+            </View>
+          );
+        })}
       </View>
       <View style={[styles.cardFooter, { borderTopColor: colors.borderDefault }]}>
         <Text variant="bodySm" color="secondary">
@@ -64,6 +87,18 @@ export default function OrdersScreen() {
 
   const { data, isLoading, refetch, isRefetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useOrders();
   const orders = data?.pages.flatMap((p) => p.data) ?? [];
+
+  const thumbnailProductIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const o of orders) {
+      for (const it of o.items.slice(0, 3)) {
+        ids.add(it.product_id);
+      }
+    }
+    return Array.from(ids);
+  }, [data]);
+
+  const orderHydrateMap = useProductThumbnailsByIds(thumbnailProductIds);
 
   if (!isAuthenticated) {
     return (
@@ -92,7 +127,11 @@ export default function OrdersScreen() {
           data={orders}
           renderItem={({ item }) => (
             <View style={[styles.cardWrap, { paddingHorizontal: spacing.lg, paddingVertical: 6 }]}>
-              <OrderCard order={item} onPress={() => router.push(`/order/${item.id}`)} />
+              <OrderCard
+                order={item}
+                hydrateMap={orderHydrateMap}
+                onPress={() => router.push(`/order/${item.id}`)}
+              />
             </View>
           )}
           keyExtractor={(item) => item.id}
@@ -149,6 +188,11 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  previewImgInner: {
+    width: '100%',
+    height: '100%',
   },
   cardFooter: {
     flexDirection: 'row',

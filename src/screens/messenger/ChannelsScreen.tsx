@@ -11,7 +11,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import {
-  ArrowLeft,
   Plus,
   Search,
   Radio,
@@ -22,7 +21,7 @@ import {
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '~/lib/contexts/ThemeContext';
-import { Text } from '~/components/ui';
+import { HeaderBackButton, Text } from '~/components/ui';
 import { useChannelsQuery } from '~/lib/hooks/useMessaging';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MessengerStackParamList } from '~/navigation/MessengerNavigator';
@@ -165,9 +164,7 @@ export function ChannelsScreen() {
         ]}
       >
         <View style={styles.headerTop}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={{ padding: 4 }}>
-            <ArrowLeft size={24} color={colors.textPrimary} />
-          </Pressable>
+          <HeaderBackButton onPress={() => navigation.goBack()} />
           <Text variant="headingLg" color="primary" style={{ flex: 1, marginLeft: spacing.sm }}>
             {t('messenger.channels', 'Channels')}
           </Text>

@@ -6,3 +6,4 @@ export { Skeleton, SkeletonProductCard } from './Skeleton';
 export { ToastProvider, useToast } from './Toast';
 export { BottomSheet } from './BottomSheet';
 export { Text } from './Text';
+export { HeaderBackButton } from './HeaderBackButton';

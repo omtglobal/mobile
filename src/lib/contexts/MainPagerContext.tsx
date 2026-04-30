@@ -3,6 +3,8 @@ import { createContext, useContext, type ReactNode } from 'react';
 export type MainPagerContextValue = {
   /** Switch to Sales tab and open product detail. */
   goToSalesAndProduct: (productId: string) => void;
+  /** Switch to Sales tab and open seller (shop) profile. */
+  goToSalesAndSeller: (sellerId: string) => void;
   /** Switch to Messenger tab and open a conversation. */
   goToMessengerAndChat: (conversationId: string) => void;
 };
