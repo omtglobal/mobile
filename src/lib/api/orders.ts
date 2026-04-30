@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 import type { ApiResponse, PaginatedResponse } from '~/types/api';
-import type { CreateOrderData, Order } from '~/types/models';
+import type { CreateOrderData, Order, OrderPayResult } from '~/types/models';
 
 export const ordersApi = {
   list: (page = 1, perPage = 20) =>
@@ -14,8 +14,15 @@ export const ordersApi = {
   create: (data: CreateOrderData) =>
     apiClient.post<ApiResponse<Order>>('/orders', data).then((r) => r.data),
 
-  pay: (id: string) =>
-    apiClient.post<ApiResponse<Order>>(`/orders/${id}/pay`).then((r) => r.data),
+  pay: (id: string, options?: { nativePaymentSheet?: boolean }) =>
+    apiClient
+      .post<ApiResponse<OrderPayResult>>(`/orders/${id}/pay`, undefined, {
+        headers:
+          options?.nativePaymentSheet === true
+            ? { 'X-Stripe-Payment-Surface': 'native' }
+            : {},
+      })
+      .then((r) => r.data),
 
   confirmDelivery: (id: string) =>
     apiClient.post<ApiResponse<Order>>(`/orders/${id}/confirm-delivery`).then((r) => r.data),

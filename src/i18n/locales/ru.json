@@ -234,7 +234,7 @@
     "created": "Создан:",
     "contact_support": "Связаться с поддержкой",
     "pay_confirm_title": "Оплатить заказ #{{id}} на {{amount}}?",
-    "pay_confirm_subtitle": "Демо-оплата — будет имитирован успех",
+    "pay_confirm_subtitle": "Вас могут перенаправить в Stripe для оплаты.",
     "order_paid": "Заказ оплачен",
     "payment_failed": "Ошибка оплаты",
     "delivery_confirmed": "Доставка подтверждена",
@@ -254,7 +254,8 @@
     "delivery_address": "Адрес доставки",
     "payment": "Оплата",
     "method": "Способ:",
-    "transaction": "Транзакция:"
+    "transaction": "Транзакция:",
+    "stripe_return_hint": "После возврата обновите заказ, если он всё ещё не оплачен."
   },
   "support": {
     "title": "Поддержка",

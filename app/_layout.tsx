@@ -16,6 +16,8 @@ import { analytics } from '~/lib/analytics/analyticsService';
 import { queryKeys } from '~/constants/queryKeys';
 import { catalogApi } from '~/lib/api/catalog';
 import { CUSTOM_FONTS } from '~/constants/fonts';
+import { STRIPE_PUBLISHABLE_KEY } from '~/constants/config';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import 'react-native-reanimated';
 
 export { ErrorBoundary } from 'expo-router';
@@ -49,27 +51,38 @@ export default function RootLayout() {
     }
   }, [loaded]);
   if (!loaded) return null;
+
+  const appTree = (
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <I18nSync />
+          <ToastProvider>
+            <SessionCheck />
+            <StatusBar style="auto" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(main)" />
+              <Stack.Screen
+                name="(auth)"
+                options={{ presentation: 'modal' }}
+              />
+            </Stack>
+          </ToastProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </QueryClientProvider>
+  );
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <ThemeProvider>
-            <I18nSync />
-            <ToastProvider>
-              <SessionCheck />
-              <StatusBar style="auto" />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(main)" />
-                <Stack.Screen
-                  name="(auth)"
-                  options={{ presentation: 'modal' }}
-                />
-              </Stack>
-            </ToastProvider>
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </QueryClientProvider>
+      {STRIPE_PUBLISHABLE_KEY ? (
+        <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY} urlScheme="ninhao">
+          {appTree}
+        </StripeProvider>
+      ) : (
+        appTree
+      )}
     </GestureHandlerRootView>
   );
 }

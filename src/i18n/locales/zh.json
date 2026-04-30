@@ -234,7 +234,7 @@
     "created": "创建时间：",
     "contact_support": "联系客服",
     "pay_confirm_title": "支付订单 #{{id}} 共 {{amount}}？",
-    "pay_confirm_subtitle": "演示支付——将模拟成功",
+    "pay_confirm_subtitle": "您可能会跳转到 Stripe 完成付款。",
     "order_paid": "订单已支付",
     "payment_failed": "支付失败",
     "delivery_confirmed": "已确认收货",
@@ -254,7 +254,8 @@
     "delivery_address": "收货地址",
     "payment": "支付",
     "method": "方式：",
-    "transaction": "交易号："
+    "transaction": "交易号：",
+    "stripe_return_hint": "返回后若仍显示未付款，请下拉刷新订单。"
   },
   "support": {
     "title": "客服",

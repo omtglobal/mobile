@@ -1,4 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useStripe } from '@stripe/stripe-react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -8,10 +11,62 @@ import { resolveOrderItemImageUrl } from '~/lib/utils/imageUrl';
 import { Button, HeaderBackButton, Text } from '~/components/ui';
 import { BottomSheet } from '~/components/ui/BottomSheet';
 import { useToast } from '~/components/ui/Toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { useOrder, usePayOrder, useConfirmDelivery } from '~/lib/hooks/useOrders';
+import { isOrderPayCheckout, isOrderPayPaymentSheet } from '~/types/models';
+import { queryKeys } from '~/constants/queryKeys';
+import { STRIPE_PUBLISHABLE_KEY } from '~/constants/config';
 import { useProductThumbnailsByIds } from '~/lib/hooks/useProductThumbnailsByIds';
 import { formatPrice, formatDate } from '~/lib/utils/format';
 import { useTheme } from '~/lib/contexts/ThemeContext';
+
+function PresentPaymentSheetFlow({
+  clientSecret,
+  shippingName,
+  onFinished,
+}: {
+  clientSecret: string;
+  shippingName: string;
+  onFinished: (errorMessage?: string) => void;
+}) {
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Ninhao',
+        paymentIntentClientSecret: clientSecret,
+        returnURL: Linking.createURL('stripe-payment'),
+        defaultBillingDetails: { name: shippingName },
+      });
+      if (cancelled) {
+        return;
+      }
+      if (initError) {
+        onFinished(initError.message);
+        return;
+      }
+      const { error: presentError } = await presentPaymentSheet();
+      if (cancelled) {
+        return;
+      }
+      if (presentError && presentError.code !== 'Canceled') {
+        onFinished(presentError.message);
+        return;
+      }
+      onFinished();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientSecret, shippingName, initPaymentSheet, presentPaymentSheet, onFinished]);
+
+  return null;
+}
+
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -20,7 +75,9 @@ export default function OrderDetailScreen() {
   const { colors, spacing } = useTheme();
 
   const [paySheetOpen, setPaySheetOpen] = useState(false);
+  const [pendingSheetSecret, setPendingSheetSecret] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { data, isLoading } = useOrder(id);
   const payOrder = usePayOrder();
   const confirmDelivery = useConfirmDelivery();
@@ -34,10 +91,45 @@ export default function OrderDetailScreen() {
 
   const orderHydrateMap = useProductThumbnailsByIds(orderThumbnailIds);
 
+  const finishNativePaymentSheet = useCallback(
+    (errorMessage?: string) => {
+      setPendingSheetSecret(null);
+      void (async () => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
+        if (id) {
+          await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id) });
+        }
+      })();
+      if (errorMessage) {
+        toast.show(errorMessage, 'error');
+      } else {
+        toast.show(t('orders.stripe_return_hint'), 'success');
+      }
+    },
+    [id, queryClient, toast, t]
+  );
+
   const handlePay = async () => {
     if (!id) return;
     try {
-      await payOrder.mutateAsync(id);
+      const res = await payOrder.mutateAsync({
+        id,
+        nativePaymentSheet: Boolean(STRIPE_PUBLISHABLE_KEY),
+      });
+      const payload = res.data;
+      if (isOrderPayPaymentSheet(payload)) {
+        setPaySheetOpen(false);
+        setPendingSheetSecret(payload.payment_intent_client_secret);
+        return;
+      }
+      if (isOrderPayCheckout(payload)) {
+        setPaySheetOpen(false);
+        await WebBrowser.openBrowserAsync(payload.checkout_url);
+        await queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id) });
+        toast.show(t('orders.stripe_return_hint'), 'success');
+        return;
+      }
       setPaySheetOpen(false);
       toast.show(t('orders.order_paid'), 'success');
     } catch {
@@ -72,6 +164,13 @@ export default function OrderDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
+      {pendingSheetSecret && order ? (
+        <PresentPaymentSheetFlow
+          clientSecret={pendingSheetSecret}
+          shippingName={order.shipping_name}
+          onFinished={finishNativePaymentSheet}
+        />
+      ) : null}
       <View style={[styles.header, { backgroundColor: colors.bgPrimary, borderBottomColor: colors.borderDefault }]}>
         <HeaderBackButton onPress={() => router.back()} />
         <Text variant="headingMd">{t('orders.order_id', { id: order.id.slice(0, 8) })}</Text>

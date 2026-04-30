@@ -150,6 +150,38 @@ export interface CreateOrderData {
   items: { product_id: string; quantity: number }[];
 }
 
+export interface OrderPayCheckoutData {
+  checkout_required: true;
+  checkout_url: string;
+  checkout_session_marker: string | null;
+}
+
+export interface OrderPayPaymentSheetData {
+  payment_sheet_required: true;
+  payment_intent_client_secret: string;
+}
+
+export type OrderPayResult = Order | OrderPayCheckoutData | OrderPayPaymentSheetData;
+
+export function isOrderPayCheckout(data: OrderPayResult): data is OrderPayCheckoutData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'checkout_required' in data &&
+    (data as OrderPayCheckoutData).checkout_required === true
+  );
+}
+
+export function isOrderPayPaymentSheet(data: OrderPayResult): data is OrderPayPaymentSheetData {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'payment_sheet_required' in data &&
+    (data as OrderPayPaymentSheetData).payment_sheet_required === true &&
+    typeof (data as OrderPayPaymentSheetData).payment_intent_client_secret === 'string'
+  );
+}
+
 // Addresses
 export interface ShippingAddress {
   id: string;

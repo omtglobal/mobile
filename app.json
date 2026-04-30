@@ -74,6 +74,13 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.omtglobal.ninhaomaniya",
+          "enableGooglePay": true
+        }
+      ],
       "expo-secure-store",
       "expo-image",
       [

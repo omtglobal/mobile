@@ -128,7 +128,9 @@ function ActivePlayer({
     }
     const timer = setTimeout(() => {
       viewLogged.current = true;
-      videoApi.recordView(item.id).catch(() => {});
+      videoApi.recordView(item.id).catch((err) => {
+        if (__DEV__) console.warn('[video] recordView failed', err);
+      });
     }, 3000);
     return () => clearTimeout(timer);
   }, [isActive, isPlaying, item.id]);

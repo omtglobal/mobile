@@ -234,7 +234,7 @@
     "created": "Creato:",
     "contact_support": "Contatta il supporto",
     "pay_confirm_title": "Pagare l'ordine #{{id}} per {{amount}}?",
-    "pay_confirm_subtitle": "Pagamento demo — verrà simulato il successo",
+    "pay_confirm_subtitle": "Potresti essere reindirizzato a Stripe per completare il pagamento.",
     "order_paid": "Ordine pagato",
     "payment_failed": "Pagamento fallito",
     "delivery_confirmed": "Consegna confermata",
@@ -254,7 +254,8 @@
     "delivery_address": "Indirizzo di consegna",
     "payment": "Pagamento",
     "method": "Metodo:",
-    "transaction": "Transazione:"
+    "transaction": "Transazione:",
+    "stripe_return_hint": "Al ritorno aggiorna l'ordine se risulta ancora non pagato."
   },
   "support": {
     "title": "Supporto",

@@ -34,7 +34,7 @@ function normalizeVideoMeta(raw: unknown): VideoMeta {
     return { id: '', filename: '', url: '' };
   }
   const o = raw as Record<string, unknown>;
-  const variantsRaw = o.variants ?? o.variants;
+  const variantsRaw = o.variants;
   let variants: VideoMeta['variants'];
   if (Array.isArray(variantsRaw)) {
     variants = variantsRaw
@@ -63,13 +63,13 @@ function normalizeVideoMeta(raw: unknown): VideoMeta {
 }
 
 function normalizeFeedItem(raw: Record<string, unknown>): VideoFeedItem {
-  const seller = raw.seller as Record<string, unknown>;
+  const seller = (raw.seller as Record<string, unknown> | null) ?? {};
   return {
     id: raw.id as string,
     video: normalizeVideoMeta(raw.video),
     seller: {
-      id: seller.id as string,
-      name: seller.name as string,
+      id: String(seller.id ?? ''),
+      name: String(seller.name ?? ''),
       avatarUrl: (seller.avatar_url as string | undefined) ?? undefined,
     },
     product: (raw.product as VideoFeedItem['product']) ?? null,

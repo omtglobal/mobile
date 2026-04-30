@@ -111,6 +111,15 @@ function getWebStoreBaseUrl(): string {
 
 export const WEB_STORE_BASE_URL = getWebStoreBaseUrl();
 
+/**
+ * Stripe publishable key for Payment Sheet (native). When empty, order pay uses hosted Checkout in WebBrowser.
+ * Set `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY` in `.env` / EAS secrets.
+ */
+export const STRIPE_PUBLISHABLE_KEY =
+  typeof process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY === 'string'
+    ? process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY.trim()
+    : '';
+
 /** Canonical HTTPS URL for a product on the web app (e.g. Next.js storefront). */
 export function productWebUrl(productId: string): string {
   return `${WEB_STORE_BASE_URL}/product/${encodeURIComponent(productId)}`;

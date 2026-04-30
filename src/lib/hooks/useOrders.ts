@@ -43,8 +43,9 @@ export function usePayOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => ordersApi.pay(id),
-    onSuccess: (_, id) => {
+    mutationFn: ({ id, nativePaymentSheet }: { id: string; nativePaymentSheet?: boolean }) =>
+      ordersApi.pay(id, { nativePaymentSheet }),
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id) });
     },

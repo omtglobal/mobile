@@ -4,6 +4,7 @@ import {
   FlatList,
   RefreshControl,
   Text,
+  TouchableOpacity,
   View,
   type ViewToken,
 } from 'react-native';
@@ -29,6 +30,7 @@ export default function VideoFeedScreen({ isTabActive }: Props) {
     items,
     loadMore,
     isLoading,
+    isError,
     refetch,
     isFetchingNextPage,
     hasMore,
@@ -57,7 +59,9 @@ export default function VideoFeedScreen({ isTabActive }: Props) {
           stats: { ...prev.stats, shares: res.data.shares_count },
         }));
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      if (__DEV__) console.warn('[video] recordShare failed', err);
+    });
   }, [shareVideoId, queryClient]);
 
   const viewabilityConfigCallbackPairs = useRef([
@@ -161,6 +165,15 @@ export default function VideoFeedScreen({ isTabActive }: Props) {
             isLoading ? (
               <View style={{ height: pageHeight, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator color="#fff" size="large" />
+              </View>
+            ) : isError ? (
+              <View style={{ height: pageHeight, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginBottom: 16 }}>
+                  {t('video.feed_error')}
+                </Text>
+                <TouchableOpacity onPress={refetch} style={{ paddingVertical: 10, paddingHorizontal: 24, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 8 }}>
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>{t('common.retry')}</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <View style={{ height: pageHeight, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
