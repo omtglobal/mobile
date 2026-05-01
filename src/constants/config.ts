@@ -124,3 +124,10 @@ export const STRIPE_PUBLISHABLE_KEY =
 export function productWebUrl(productId: string): string {
   return `${WEB_STORE_BASE_URL}/product/${encodeURIComponent(productId)}`;
 }
+
+/** Home “Popular” grid: same ordering as `popular_grid_first_page` from GET /catalog/home. */
+export const HOME_POPULAR_GRID_FILTERS = {
+  sort_by: 'reviews_count' as const,
+  sort_order: 'desc' as const,
+  per_page: 20,
+};

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { MessageCircle, Share2 } from 'lucide-react-native';
@@ -28,7 +29,7 @@ import { analytics } from '~/lib/analytics/analyticsService';
 import { ShareToChatSheet } from '~/components/messenger';
 import type { Review } from '~/types/models';
 
-function ReviewCard({ item }: { item: Review }) {
+const ReviewCard = memo(function ReviewCard({ item }: { item: Review }) {
   const { colors, spacing, radius } = useTheme();
   return (
     <View
@@ -60,7 +61,7 @@ function ReviewCard({ item }: { item: Review }) {
       </Text>
     </View>
   );
-}
+});
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -106,6 +107,35 @@ export default function ProductDetailScreen() {
   const reviewPages = reviewsQuery.data?.pages ?? [];
   const allReviews = reviewPages.flatMap((p) => p.data);
   const reviewTotalFromProduct = product?.review_count ?? 0;
+
+  const reviewListHeight = Math.min(1000, Math.max(240, allReviews.length * 172 + 300));
+
+  const renderReviewRow = useCallback(({ item }: { item: Review }) => <ReviewCard item={item} />, []);
+
+  const reviewsListFooter = useMemo(
+    () => {
+      if (!product) return null;
+      return (
+        <View>
+          {reviewsQuery.hasNextPage ? (
+            <Button
+              variant="secondary"
+              onPress={() => reviewsQuery.fetchNextPage()}
+              disabled={reviewsQuery.isFetchingNextPage}
+              loading={reviewsQuery.isFetchingNextPage}
+              style={{ marginTop: spacing.sm }}
+            >
+              {t('product.reviews_load_more')}
+            </Button>
+          ) : null}
+          <View style={{ marginTop: spacing.lg }}>
+            <ProductReviewForm productId={product.id} />
+          </View>
+        </View>
+      );
+    },
+    [product, reviewsQuery, spacing.lg, spacing.sm, t],
+  );
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -194,29 +224,27 @@ export default function ProductDetailScreen() {
                 <View style={styles.reviewsLoading}>
                   <ActivityIndicator color={colors.brandPrimary} />
                 </View>
-              ) : null}
-              {reviewTotalFromProduct === 0 && !reviewsQuery.isLoading && allReviews.length === 0 ? (
-                <Text variant="bodyMd" color="secondary">
-                  {t('product.no_reviews_yet')}
-                </Text>
-              ) : null}
-              {allReviews.map((r) => (
-                <ReviewCard key={r.id} item={r} />
-              ))}
-              {reviewsQuery.hasNextPage ? (
-                <Button
-                  variant="secondary"
-                  onPress={() => reviewsQuery.fetchNextPage()}
-                  disabled={reviewsQuery.isFetchingNextPage}
-                  loading={reviewsQuery.isFetchingNextPage}
-                  style={{ marginTop: spacing.sm }}
-                >
-                  {t('product.reviews_load_more')}
-                </Button>
-              ) : null}
-              <View style={{ marginTop: spacing.lg }}>
-                <ProductReviewForm productId={product.id} />
-              </View>
+              ) : reviewTotalFromProduct === 0 && !reviewsQuery.isLoading && allReviews.length === 0 ? (
+                <>
+                  <Text variant="bodyMd" color="secondary">
+                    {t('product.no_reviews_yet')}
+                  </Text>
+                  <View style={{ marginTop: spacing.lg }}>
+                    <ProductReviewForm productId={product.id} />
+                  </View>
+                </>
+              ) : (
+                <View style={{ height: reviewListHeight }}>
+                  <FlashList
+                    data={allReviews}
+                    renderItem={renderReviewRow}
+                    keyExtractor={(r) => r.id}
+                    scrollEnabled={allReviews.length > 3}
+                    nestedScrollEnabled
+                    ListFooterComponent={reviewsListFooter}
+                  />
+                </View>
+              )}
             </View>
           )}
 

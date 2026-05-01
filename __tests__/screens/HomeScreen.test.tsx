@@ -5,7 +5,7 @@ import HomeScreen from '../../app/(main)/(tabs)/index';
 describe('HomeScreen', () => {
   it('renders loading state initially', () => {
     renderWithProviders(<HomeScreen />);
-    expect(screen.getByText('home.search_placeholder')).toBeTruthy();
+    expect(screen.getByTestId('search-input')).toBeTruthy();
   });
 
   it('renders home data after loading', async () => {

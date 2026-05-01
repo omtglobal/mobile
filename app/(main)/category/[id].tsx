@@ -11,8 +11,8 @@ import { analytics } from '~/lib/analytics/analyticsService';
 import type { ProductFilters } from '~/types/models';
 
 const SORT_OPTIONS: { sort_by: ProductFilters['sort_by']; sort_order: ProductFilters['sort_order']; label: string }[] = [
-  { sort_by: 'published_at', sort_order: 'desc', label: 'Popular' },
-  { sort_by: 'published_at', sort_order: 'desc', label: 'Newest' },
+  { sort_by: 'reviews_count', sort_order: 'desc', label: 'Popular' },
+  { sort_by: 'created_at', sort_order: 'desc', label: 'Newest' },
   { sort_by: 'price', sort_order: 'asc', label: 'Price: Low to High' },
   { sort_by: 'price', sort_order: 'desc', label: 'Price: High to Low' },
   { sort_by: 'title', sort_order: 'asc', label: 'Name: A-Z' },

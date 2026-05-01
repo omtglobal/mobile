@@ -38,7 +38,7 @@ export function ProductGallery({ images, productId }: ProductGalleryProps) {
           setActiveIndex(i);
         }}
         renderItem={({ item }) => {
-          const resolvedUrl = resolveImageUrl(item.url);
+          const resolvedUrl = resolveImageUrl(item.thumbnail_url ?? item.url);
           return (
           <View style={[styles.slide, { width, backgroundColor: colors.bgSecondary }]}>
             {resolvedUrl ? (

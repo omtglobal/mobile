@@ -1,4 +1,5 @@
 import { FlashList } from '@shopify/flash-list';
+import { useCallback } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 import { ProductCard } from './ProductCard';
 import { useTheme } from '~/lib/contexts/ThemeContext';
@@ -25,14 +26,18 @@ export function ProductGrid({
 }: ProductGridProps) {
   const { spacing } = useTheme();
 
+  const renderProduct = useCallback(({ item }: { item: Product }) => {
+    return (
+      <View style={styles.cell}>
+        <ProductCard product={item} variant="standard" />
+      </View>
+    );
+  }, []);
+
   return (
     <FlashList
       data={products}
-      renderItem={({ item }) => (
-        <View style={styles.cell}>
-          <ProductCard product={item} variant="standard" />
-        </View>
-      )}
+      renderItem={renderProduct}
       keyExtractor={(item) => item.id}
       numColumns={2}
       onEndReached={onEndReached}

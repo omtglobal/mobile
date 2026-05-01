@@ -1,29 +1,36 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, RefreshControl, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import { SearchBar, CategoryGrid, ProductCarousel, ProductCard } from '~/components/catalog';
 import { SkeletonProductCard, Text } from '~/components/ui';
 import { useHome, useProducts, useSearchProducts } from '~/lib/hooks/useProducts';
 import { useTheme } from '~/lib/contexts/ThemeContext';
 import { analytics } from '~/lib/analytics/analyticsService';
 import { addSearchHistory } from '~/lib/utils/searchHistory';
+import { HOME_POPULAR_GRID_FILTERS } from '~/constants/config';
+import { queryKeys } from '~/constants/queryKeys';
+import type { PaginatedResponse } from '~/types/api';
+import type { Product } from '~/types/models';
 
 const DEBOUNCE_MS = 300;
 
 export default function HomeScreen() {
   const { t } = useTranslation();
   const { colors, spacing } = useTheme();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const popularListKey = useMemo(
+    () => queryKeys.products.list({ ...HOME_POPULAR_GRID_FILTERS }),
+    [],
+  );
+
   const homeQuery = useHome();
-  const popularQuery = useProducts({
-    sort_by: 'published_at',
-    sort_order: 'desc',
-    per_page: 20,
-  });
+  const popularQuery = useProducts({ ...HOME_POPULAR_GRID_FILTERS });
   const searchQuery = useSearchProducts(debouncedQuery);
 
   useEffect(() => {
@@ -51,13 +58,33 @@ export default function HomeScreen() {
     }
   }, [debouncedQuery]);
 
+  const isSearching = debouncedQuery.length >= 2;
+
+  useEffect(() => {
+    const seed = homeQuery.data?.data?.popular_grid_first_page;
+    if (!seed?.meta || !Array.isArray(seed.data) || isSearching) return;
+    queryClient.setQueryData<InfiniteData<PaginatedResponse<Product>>>(popularListKey, (old) => {
+      if (old?.pages?.[0]?.data?.length) return old;
+      return {
+        pages: [
+          {
+            success: true,
+            message: 'OK',
+            data: seed.data,
+            meta: seed.meta,
+          },
+        ],
+        pageParams: [1],
+      };
+    });
+  }, [homeQuery.data, isSearching, popularListKey, queryClient]);
+
   const homeData = homeQuery.data?.data;
   const categories = homeData?.categories ?? [];
   const newProducts = homeData?.new_products ?? [];
   const popularPages = popularQuery.data?.pages ?? [];
   const popularProducts = popularPages.flatMap((p) => p.data);
 
-  const isSearching = debouncedQuery.length >= 2;
   const searchPages = searchQuery.data?.pages ?? [];
   const searchProducts = searchPages.flatMap((p) => p.data);
   const searchTotal = searchPages[searchPages.length - 1]?.meta?.total;
@@ -91,50 +118,76 @@ export default function HomeScreen() {
   const isLoading = homeQuery.isLoading && !homeQuery.data;
   const searchLoading = isSearching && searchQuery.isFetching && searchProducts.length === 0;
 
-  const ListHeaderComponent = (
-    <View style={styles.header}>
-      <View style={[styles.searchSection, { paddingHorizontal: spacing.lg, paddingTop: 38 }]}>
-        <SearchBar value={query} onChangeText={setQuery} onSubmitEditing={handleSubmitSearch} />
-      </View>
+  const listHeader = useMemo(
+    () => (
+      <View style={styles.header}>
+        <View style={[styles.searchSection, { paddingHorizontal: spacing.lg, paddingTop: 38 }]}>
+          <SearchBar value={query} onChangeText={setQuery} onSubmitEditing={handleSubmitSearch} />
+        </View>
 
-      {isSearching ? (
-        <View style={[styles.section, { paddingHorizontal: spacing.lg, paddingTop: spacing.sm }]}>
-          {searchLoading ? (
-            <View style={styles.searchStatusRow}>
-              <ActivityIndicator color={colors.brandPrimary} />
+        {isSearching ? (
+          <View style={[styles.section, { paddingHorizontal: spacing.lg, paddingTop: spacing.sm }]}>
+            {searchLoading ? (
+              <View style={styles.searchStatusRow}>
+                <ActivityIndicator color={colors.brandPrimary} />
+              </View>
+            ) : (
+              <Text variant="bodyMd" color="secondary">
+                {t('home.found_count', { count: searchTotal ?? listData.length })}
+              </Text>
+            )}
+          </View>
+        ) : isLoading ? (
+          <View style={styles.skeletonSection}>
+            <View style={[styles.skeletonCategories, { backgroundColor: colors.bgTertiary }]} />
+            <View style={[styles.skeletonCarousel, { backgroundColor: colors.bgTertiary }]} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.section}>
+              <CategoryGrid categories={categories} />
             </View>
-          ) : (
-            <Text variant="bodyMd" color="secondary">
-              {t('home.found_count', { count: searchTotal ?? listData.length })}
-            </Text>
-          )}
-        </View>
-      ) : isLoading ? (
-        <View style={styles.skeletonSection}>
-          <View style={[styles.skeletonCategories, { backgroundColor: colors.bgTertiary }]} />
-          <View style={[styles.skeletonCarousel, { backgroundColor: colors.bgTertiary }]} />
-        </View>
-      ) : (
-        <>
-          <View style={styles.section}>
-            <CategoryGrid categories={categories} />
-          </View>
 
-          <View style={[styles.section, { paddingTop: spacing.sm }]}>
-            <ProductCarousel
-              products={newProducts}
-              title={t('home.new_arrivals')}
-              allLink="/products?sort_by=published_at"
-            />
-          </View>
+            <View style={[styles.section, { paddingTop: spacing.sm }]}>
+              <ProductCarousel
+                products={newProducts}
+                title={t('home.new_arrivals')}
+                allLink="/products?sort_by=published_at"
+              />
+            </View>
 
-          <View style={[styles.section, { paddingTop: spacing.sm, paddingHorizontal: spacing.lg }]}>
-            <Text variant="headingMd">{t('home.popular')}</Text>
-          </View>
-        </>
-      )}
-    </View>
+            <View style={[styles.section, { paddingTop: spacing.sm, paddingHorizontal: spacing.lg }]}>
+              <Text variant="headingMd">{t('home.popular')}</Text>
+            </View>
+          </>
+        )}
+      </View>
+    ),
+    [
+      categories,
+      colors.brandPrimary,
+      colors.bgTertiary,
+      handleSubmitSearch,
+      isLoading,
+      isSearching,
+      listData.length,
+      newProducts,
+      query,
+      searchLoading,
+      searchTotal,
+      spacing.lg,
+      spacing.sm,
+      t,
+    ],
   );
+
+  const renderProductRow = useCallback(({ item }: { item: Product }) => {
+    return (
+      <View style={styles.cell}>
+        <ProductCard product={item} variant="standard" />
+      </View>
+    );
+  }, []);
 
   const ListFooterComponent =
     isFetchingNextPage && listData.length > 0 ? (
@@ -177,14 +230,10 @@ export default function HomeScreen() {
     <FlashList
       data={listData}
       extraData={isSearching}
-      renderItem={({ item }) => (
-        <View style={styles.cell}>
-          <ProductCard product={item} variant="standard" />
-        </View>
-      )}
+      renderItem={renderProductRow}
       keyExtractor={(item) => item.id}
       numColumns={2}
-      ListHeaderComponent={ListHeaderComponent}
+      ListHeaderComponent={listHeader}
       ListFooterComponent={ListFooterComponent}
       ListEmptyComponent={ListEmptyComponent}
       keyboardShouldPersistTaps="handled"
@@ -202,7 +251,9 @@ export default function HomeScreen() {
       refreshControl={
         <RefreshControl
           refreshing={
-            (homeQuery.isRefetching || (isSearching && searchQuery.isRefetching)) &&
+            (homeQuery.isRefetching ||
+              (!isSearching && popularQuery.isRefetching) ||
+              (isSearching && searchQuery.isRefetching)) &&
             !isFetchingNextPage
           }
           onRefresh={onRefresh}

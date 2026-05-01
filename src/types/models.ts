@@ -2,6 +2,8 @@
  * Domain models matching 02-api-contracts and web client types
  */
 
+import type { PaginatedMeta } from './api';
+
 // Product badges (storefront)
 export const PRODUCT_BADGES = ['choice', 'saving', 'brand_plus', 'best_sale'] as const;
 export type ProductBadge = (typeof PRODUCT_BADGES)[number];
@@ -64,7 +66,7 @@ export interface Product {
 export interface ProductFilters {
   page?: number;
   per_page?: number;
-  sort_by?: 'published_at' | 'price' | 'title';
+  sort_by?: 'published_at' | 'price' | 'title' | 'created_at' | 'reviews_count';
   sort_order?: 'asc' | 'desc';
   min_price?: number;
   max_price?: number;
@@ -251,6 +253,11 @@ export interface HomeData {
   categories: Category[];
   new_products: Product[];
   popular_products: Product[];
+  /** First page of popular-by-reviews grid (same as infinite list seed). */
+  popular_grid_first_page?: {
+    data: Product[];
+    meta: PaginatedMeta;
+  };
 }
 
 // Product page (product + reviews + featured)

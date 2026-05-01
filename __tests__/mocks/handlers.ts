@@ -43,6 +43,10 @@ export const handlers = [
         categories: [mockCategory],
         new_products: [mockProduct],
         popular_products: [mockProduct],
+        popular_grid_first_page: {
+          data: [mockProduct],
+          meta: { total: 50, per_page: 20, current_page: 1, last_page: 3 },
+        },
       },
     })
   ),
